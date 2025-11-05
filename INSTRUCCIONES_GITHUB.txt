@@ -1,0 +1,27 @@
+==========================================
+INSTRUCCIONES PARA SUBIR A GITHUB
+==========================================
+
+PASO 1: Crear el repositorio en GitHub
+--------------------------------------
+1. Abre tu navegador y ve a: https://github.com/new
+2. Nombre del repositorio: chatbot-aerocamaras-cl
+3. Descripción (opcional): Chatbot Aerocámaras multicanal
+4. Elige: Público o Privado (tu preferencia)
+5. IMPORTANTE: NO marques la casilla "Add a README file"
+6. Haz clic en "Create repository"
+
+PASO 2: Subir el código
+-----------------------
+Después de crear el repositorio, ejecuta estos comandos en PowerShell:
+
+git branch -M main
+git push -u origin main
+
+Si te pide autenticación, GitHub te pedirá usuario y contraseña/token.
+
+==========================================
+URL del repositorio:
+https://github.com/diegogigi/chatbot-aerocamaras-cl
+==========================================
+
