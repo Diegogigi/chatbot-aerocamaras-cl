@@ -217,14 +217,11 @@ def get_context(sess: SessionState) -> Dict[str, Any]:
 
 # ============= Estilo de respuesta (tono técnico + empático) =============
 def asis_prefix() -> str:
-    return (
-        "[Asesor Médico-Veterinario] Hola, soy tu asesor de Aerocámaras Plegables en Chile. "
-        "Te acompaño paso a paso para recomendar el tamaño correcto y cerrar tu compra de forma segura y rápida. "
-    )
+    return "Hola, soy EMA 👋\n\n"
 
 
 def vendedor_prefix() -> str:
-    return "[Vendedor Amable] ¡Excelente! Te explico en simple y vamos atajando dudas. "
+    return ""
 
 
 def style_msg(text: str) -> str:
@@ -234,14 +231,14 @@ def style_msg(text: str) -> str:
 # ============= NLG Variantes (evitar respuestas robóticas) =============
 NLG_VARIANTS = {
     "greet": [
-        "¡Hola! Bienvenido/a. ¿Buscas aerocámara para PERSONA o para MASCOTA?",
-        "Hola, gracias por contactarnos. ¿Es para uso en PERSONA o MASCOTA?",
-        "¡Buen día! Estoy aquí para ayudarte. ¿Aerocámara para PERSONA o MASCOTA?",
+        "¿Buscas aerocámara para PERSONA o MASCOTA?",
+        "¿Es para uso en PERSONA o MASCOTA?",
+        "¿Aerocámara para PERSONA o MASCOTA?",
     ],
     "transition_qualify": [
-        "Perfecto, vamos paso a paso. ¿Es para PERSONA o MASCOTA?",
-        "Excelente. Para darte la mejor opción, ¿es para PERSONA o MASCOTA?",
-        "Entendido. ¿Buscas aerocámara para PERSONA o para MASCOTA?",
+        "¿Es para PERSONA o MASCOTA?",
+        "¿Para PERSONA o MASCOTA?",
+        "¿Buscas para PERSONA o MASCOTA?",
     ],
     "missing_data": [
         "Perfecto, me faltan: {missing}.",
@@ -385,7 +382,7 @@ def classify_intent(text: str) -> str:
     ):
         return "greet"
     if any(
-        k in t for k in ["humana", "persona", "adulto", "pediátric", "niño", "niña"]
+        k in t for k in ["humana", "persona", "adulto", "pediátrico", "niño", "niña"]
     ):
         return "want_human"
     if any(k in t for k in ["mascota", "perro", "gato"]):
@@ -491,6 +488,17 @@ def classify_intent(text: str) -> str:
         return "faq_contacto"
     if any(k in t for k in ["dirección", "direccion", "sucursal", "oficina"]):
         return "faq_sucursal"
+    # Nuevos intents FAQ específicos
+    if any(k in t for k in ["sin mascarilla", "por qué sin mascarilla", "porque sin mascarilla", "sin mascarilla por qué"]):
+        return "faq_mascarilla_sin"
+    if any(k in t for k in ["edad", "qué edad", "que edad", "para qué edad", "desde qué edad"]):
+        return "faq_edad"
+    if any(k in t for k in ["cómo lavar", "como lavar", "lavado detallado", "pasos lavado", "instrucciones lavado"]):
+        return "faq_lavado_detalle"
+    if any(k in t for k in ["talla mascota", "qué talla mascota", "que talla mascota", "medir hocico", "talla para mascota"]):
+        return "faq_talla_mascota"
+    if any(k in t for k in ["vannair", "van air", "compatible vannair", "adaptador vannair"]):
+        return "faq_vannair"
     # Hooks de teclado
     if any(k in t for k in ["ver precios"]):
         return "ask_price"
@@ -553,8 +561,15 @@ def list_options_site() -> str:
 
 def shipping_text() -> str:
     return (
-        "Despachamos a todo Chile. En RM, 24–48 h hábiles; regiones, 48–96 h hábiles aprox. "
-        "Costo referencial desde $3.000 (según comuna/ciudad y peso). Retiro en bodega RM previa coordinación."
+        "🚚 Envío GRATIS a todo Chile\n\n"
+        "⏱️ Tiempos de entrega:\n"
+        "• RM (antes 23:00): al día siguiente\n"
+        "• Valparaíso/O'Higgins: 48 horas\n"
+        "• Otras regiones: 2 a 5 días\n\n"
+        "⏰ Horario de corte:\n"
+        "• Santiago: 23:00\n"
+        "• Fuera de Santiago: 16:00\n\n"
+        "¿En qué región estás?"
     )
 
 
@@ -601,9 +616,14 @@ def faq_documents() -> str:
 
 # FAQ adicionales del sitio
 FAQ = {
-    "contacto": "Atendemos Lun–Vie 08:00–20:00. Tel: +569 9837 4924 · comunicaciones@aeroprochile.cl",
-    "sucursales": "Direcciones: Parcela 8 Quillaitún, Los Álamos; Alcántara 1136, Las Condes.",
-    "uso_web": "Pasos de uso detallados en el sitio (agitar inhalador, acoplar, sellar y realizar respiraciones lentas).",
+    "contacto": "📞 Teléfono: +569 9837 4924\n⏰ Horarios: Lunes a Sábado 9:00 - 21:00\n✉️ Email: comunicaciones@aeroprochile.cl",
+    "sucursales": "🏪 Sucursales (solo retiro):\n1. Mariano Sánchez Fontecilla 984, Las Condes\n2. Alcántara 1136, Las Condes\n3. Casa Matriz, Los Álamos, Región del Biobío\n\nTambién en Mercado Libre y Mercado Público.",
+    "uso_web": "Pasos básicos: agitar inhalador, acoplar a la aerocámara, sellar bien (boquilla o mascarilla) y realizar 5-6 respiraciones lentas.",
+    "mascarilla_sin": "Las aerocámaras sin mascarilla son para mayores de 6 años. La boquilla directa es más efectiva para que el medicamento llegue mejor a los pulmones.\n\n¿Te interesa saber sobre las que tienen mascarilla?",
+    "edad_uso": "Recomendado para personas mayores de 6 años.",
+    "lavado": "Lávala una vez por semana si la usas diariamente.\n\nPasos: agua fría y jabón líquido suave, no enjuagues (reduce estática), seca al aire (nunca con toalla).\n\n¿Quieres más detalles del proceso?",
+    "talla_mascota": "Mide el hocico: desde la comisura del labio hasta el borde. Tallas:\n• S: hasta 5 cm\n• M: hasta 7 cm\n• L: hasta 9 cm\n\n¿Tienes la medida de tu mascota?",
+    "vannair": "¡Sí! Tenemos aerocámara con adaptador circular compatible con Vannair. Ajuste perfecto y sin filtraciones.\n\n¿Te interesa más información o comprar?",
 }
 
 
@@ -703,13 +723,27 @@ def detect_city(text: str) -> tuple[Optional[str], Optional[str]]:
 def shipping_info_by_city(city: str, zone: str) -> str:
     """Retorna información de envío según zona."""
     if zone == "RM":
-        return "Despacho en RM: 24-48 horas hábiles, desde $3.000 (referencial)."
+        return (
+            f"📍 {city} (RM)\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Si compras antes de las 23:00: entrega al día siguiente\n"
+            "⏰ Fuera de horario: 48 horas\n\n"
+            "¿Te funciona el envío al día siguiente?"
+        )
     elif zone in ["V", "VI"]:
         return (
-            "Despacho a regiones V/VI: 48-72 horas hábiles, desde $3.500 (referencial)."
+            f"📍 {city}\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Tiempo estimado: 48 horas\n\n"
+            "¿Te funciona ese tiempo?"
         )
     else:
-        return "Despacho a otras regiones: 72-96 horas hábiles, desde $4.000 (referencial)."
+        return (
+            f"📍 {city}\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Tiempo estimado: 2 a 5 días\n\n"
+            "¿Te funciona ese tiempo?"
+        )
 
 
 # ============= Carrito / pedido =============
@@ -872,6 +906,16 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(FAQ["sucursales"])
         if intent == "faq_uso":
             return style_msg(FAQ["uso_web"] + " (Fuente: página Aerocámara)")
+        if intent == "faq_mascarilla_sin":
+            return style_msg(FAQ["mascarilla_sin"])
+        if intent == "faq_edad":
+            return style_msg(FAQ["edad_uso"])
+        if intent == "faq_lavado_detalle":
+            return style_msg(FAQ["lavado"])
+        if intent == "faq_talla_mascota":
+            return style_msg(FAQ["talla_mascota"])
+        if intent == "faq_vannair":
+            return style_msg(FAQ["vannair"])
         if intent in ["want_human", "want_pet", "sizing"]:
             txt = user_text.lower()
             if any(k in txt for k in ["humana", "persona", "adulto", "pediá"]):
@@ -1059,7 +1103,9 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 "Para emitir la orden necesito el NOMBRE del responsable, COMUNA/CIUDAD y TELÉFONO o EMAIL."
             )
         if intent == "sizing":
-            return style_msg("¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?")
+            return style_msg(
+                "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?"
+            )
         return style_msg("¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?")
 
     if sess.state == "COLLECT_DATA":
@@ -1204,12 +1250,20 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 precio_final = None
                 talla_detectada = None
 
-                if any(k in txt_lower for k in ["talla s", " s", "peque", "pequeño", "pequeña"]):
+                if any(
+                    k in txt_lower
+                    for k in ["talla s", " s", "peque", "pequeño", "pequeña"]
+                ):
                     talla_detectada = "S"
                     precio_final = item_base["precio_min"]
-                elif any(k in txt_lower for k in ["talla m", " m", "med", "mediano", "mediana"]):
+                elif any(
+                    k in txt_lower
+                    for k in ["talla m", " m", "med", "mediano", "mediana"]
+                ):
                     talla_detectada = "M"
-                    precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
+                    precio_final = (
+                        item_base["precio_min"] + item_base["precio_max"]
+                    ) // 2
                 elif any(k in txt_lower for k in ["talla l", " l", "gran", "grande"]):
                     talla_detectada = "L"
                     precio_final = item_base["precio_max"]
@@ -1275,6 +1329,16 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(FAQ["sucursales"])
         if intent == "faq_uso":
             return style_msg(FAQ["uso_web"] + " (Fuente: página Aerocámara)")
+        if intent == "faq_mascarilla_sin":
+            return style_msg(FAQ["mascarilla_sin"])
+        if intent == "faq_edad":
+            return style_msg(FAQ["edad_uso"])
+        if intent == "faq_lavado_detalle":
+            return style_msg(FAQ["lavado"])
+        if intent == "faq_talla_mascota":
+            return style_msg(FAQ["talla_mascota"])
+        if intent == "faq_vannair":
+            return style_msg(FAQ["vannair"])
         return style_msg(
             "¿Hay alguna duda técnica o de precio que quieras resolver antes de finalizar?"
         )
@@ -1308,6 +1372,16 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         return style_msg(FAQ["sucursales"])
     if intent == "faq_uso":
         return style_msg(FAQ["uso_web"] + " (Fuente: página Aerocámara)")
+    if intent == "faq_mascarilla_sin":
+        return style_msg(FAQ["mascarilla_sin"])
+    if intent == "faq_edad":
+        return style_msg(FAQ["edad_uso"])
+    if intent == "faq_lavado_detalle":
+        return style_msg(FAQ["lavado"])
+    if intent == "faq_talla_mascota":
+        return style_msg(FAQ["talla_mascota"])
+    if intent == "faq_vannair":
+        return style_msg(FAQ["vannair"])
     if intent == "shipping":
         return style_msg(shipping_text())
     if intent == "warranty":
