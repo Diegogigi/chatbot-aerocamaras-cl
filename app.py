@@ -574,27 +574,38 @@ async def meta_webhook(request: Request):
 async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: str | None = Header(None)):
     expected = TELEGRAM_SECRET_TOKEN
     if expected and x_telegram_bot_api_secret_token != expected:
+        print(f"ERROR: Invalid secret token. Expected: {expected[:10]}..., Got: {x_telegram_bot_api_secret_token[:10] if x_telegram_bot_api_secret_token else 'None'}...")
         return JSONResponse({"ok": False, "error": "invalid secret token"}, status_code=403)
 
     if not TELEGRAM_BOT_TOKEN:
+        print("ERROR: TELEGRAM_BOT_TOKEN no configurado en webhook")
         return JSONResponse({"ok": True})
+    
     update = await request.json()
+    print(f"DEBUG: Webhook recibido - update keys: {update.keys()}")
+    
     try:
         message = update.get("message") or update.get("edited_message")
         if message and "text" in message:
             chat_id = str(message["chat"]["id"])
             text = message["text"]
+            print(f"DEBUG: Procesando mensaje de chat_id={chat_id}, text='{text}'")
             reply = next_message_logic("telegram", chat_id, text)
+            print(f"DEBUG: Respuesta generada: '{reply[:50]}...' (length={len(reply)})")
             # obtiene estado actual para decidir teclado
             _sess = get_session("telegram", chat_id)
             telegram_send_message(chat_id, reply, state=_sess.state)
+        else:
+            print(f"DEBUG: No hay mensaje de texto en el update. Keys: {message.keys() if message else 'No message'}")
     except Exception as e:
-        print("Error telegram_webhook:", e)
+        print(f"ERROR telegram_webhook exception: {e}")
+        import traceback
+        traceback.print_exc()
     return JSONResponse({"ok": True})
 
 def telegram_send_message(chat_id: str, text: str, state: str | None = None):
     if not TELEGRAM_BOT_TOKEN:
-        print("TELEGRAM_BOT_TOKEN no configurado")
+        print("ERROR: TELEGRAM_BOT_TOKEN no configurado")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     kb = build_keyboard(state)
@@ -602,9 +613,17 @@ def telegram_send_message(chat_id: str, text: str, state: str | None = None):
     if kb:
         data["reply_markup"] = kb
     try:
-        requests.post(url, json=data, timeout=15)
+        print(f"DEBUG: Enviando mensaje a chat_id={chat_id}, text_length={len(text)}")
+        response = requests.post(url, json=data, timeout=15)
+        response_data = response.json()
+        if response_data.get("ok"):
+            print(f"DEBUG: Mensaje enviado exitosamente a chat_id={chat_id}")
+        else:
+            print(f"ERROR Telegram API: {response_data}")
     except Exception as e:
-        print("Error Telegram send:", e)
+        print(f"ERROR Telegram send exception: {e}")
+        import traceback
+        traceback.print_exc()
 
 def telegram_get_updates(offset: int = 0):
     """Obtiene actualizaciones de Telegram usando polling"""
