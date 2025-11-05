@@ -275,11 +275,15 @@ def build_keyboard(state: str | None) -> dict | None:
     if st in ("START", "QUALIFY", ""):
         rows = [["Persona", "Mascota"], ["Precio", "Envío"], ["Hablar con asesor"]]
     elif st == "HUMAN_DETAIL":
-        rows = [["Adulto", "Pediátrico"], ["Ver precios", "Envío"], ["Volver"]]
+        rows = [
+            ["Bolso", "Mascarilla"],
+            ["Adaptador Circular", "Recambio"],
+            ["Ver precios", "Envío"],
+            ["Volver"],
+        ]
     elif st == "PET_DETAIL":
         rows = [
-            ["Gato/Perro Pequeño"],
-            ["Perro Mediano", "Perro Grande"],
+            ["Talla S", "Talla M", "Talla L"],
             ["Ver precios", "Envío"],
             ["Volver"],
         ]
@@ -876,7 +880,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 return style_msg(
                     "Perfecto. Opciones para PERSONAS:\\n"
                     f"{list_options_human()}\\n\\n"
-                    "¿Prefieres ADULTO o PEDIÁTRICO?"
+                    "¿Qué modelo prefieres? Bolso transportador, Mascarilla, Adaptador circular o Recambio?"
                 )
             if any(k in txt for k in ["mascota", "perro", "gato"]):
                 update_context(sess, {"family": "mascota"})
@@ -884,7 +888,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 return style_msg(
                     "Excelente. Opciones para MASCOTAS:\\n"
                     f"{list_options_pet()}\\n\\n"
-                    "¿Es GATO/Perro pequeño, Perro mediano o Perro grande?"
+                    "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?"
                 )
             return style_msg(
                 "¿Persona (adulto/pediátrico) o Mascota (gato/perro pequeño/mediano/grande)?"
@@ -934,8 +938,9 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 get_variant("transition_qualify") or "¿Es para PERSONA o MASCOTA?"
             )
 
-        if "adult" in txt:
-            sku = CATALOGO["humana"]["adulto"]["sku"]
+        # Detectar productos específicos del nuevo catálogo
+        if any(k in txt for k in ["bolso", "transportador"]):
+            sku = CATALOGO["humana"]["bolso"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
@@ -944,19 +949,43 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 f"{summarize_order(ctx)}\\n\\n"
                 "Para emitir la orden necesito tu NOMBRE, COMUNA/CIUDAD y TELÉFONO o EMAIL."
             )
-        if any(k in txt for k in ["pediatr", "niñ"]):
-            sku = CATALOGO["humana"]["pediatrico"]["sku"]
+        if "mascarilla" in txt:
+            sku = CATALOGO["humana"]["mascarilla"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
                 f"Agregué {item['nombre']} al carrito ({format_price(item['precio_clp'])}).\\n"
                 f"{summarize_order(ctx)}\\n\\n"
-                "Para avanzar, indícame tu NOMBRE, COMUNA/CIUDAD y TELÉFONO o EMAIL."
+                "Para emitir la orden necesito tu NOMBRE, COMUNA/CIUDAD y TELÉFONO o EMAIL."
+            )
+        if any(k in txt for k in ["adaptador", "circular"]):
+            sku = CATALOGO["humana"]["adaptador_circular"]["sku"]
+            ctx, item = add_to_cart(ctx, sku)
+            update_context(sess, ctx)
+            save_session(sess, state="COLLECT_DATA")
+            return style_msg(
+                f"Agregué {item['nombre']} al carrito ({format_price(item['precio_clp'])}).\\n"
+                f"{summarize_order(ctx)}\\n\\n"
+                "Para emitir la orden necesito tu NOMBRE, COMUNA/CIUDAD y TELÉFONO o EMAIL."
+            )
+        if "recambio" in txt:
+            sku = CATALOGO["humana"]["recambio"]["sku"]
+            ctx, item = add_to_cart(ctx, sku)
+            update_context(sess, ctx)
+            save_session(sess, state="COLLECT_DATA")
+            return style_msg(
+                f"Agregué {item['nombre']} al carrito ({format_price(item['precio_clp'])}).\\n"
+                f"{summarize_order(ctx)}\\n\\n"
+                "Para emitir la orden necesito tu NOMBRE, COMUNA/CIUDAD y TELÉFONO o EMAIL."
             )
         if intent == "sizing":
-            return style_msg("¿ADULTO o PEDIÁTRICO?")
-        return style_msg("¿Prefieres ADULTO o PEDIÁTRICO?")
+            return style_msg(
+                "¿Qué modelo prefieres? Bolso transportador, Mascarilla, Adaptador circular o Recambio?"
+            )
+        return style_msg(
+            "¿Qué modelo prefieres? Bolso transportador, Mascarilla, Adaptador circular o Recambio?"
+        )
 
     if sess.state == "PET_DETAIL":
         txt = user_text.lower()
@@ -986,27 +1015,52 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 get_variant("transition_qualify") or "¿Es para PERSONA o MASCOTA?"
             )
 
-        if any(k in txt for k in ["gato", "peque"]):
-            sku = CATALOGO["mascota"]["gato_peq"]["sku"]
-        elif "med" in txt:
-            sku = CATALOGO["mascota"]["perro_med"]["sku"]
-        elif any(k in txt for k in ["gran", "grande"]):
-            sku = CATALOGO["mascota"]["perro_grande"]["sku"]
-        else:
-            sku = None
+        # Detectar tallas para aeropet (precio variable)
+        # Mapeo aproximado: S = precio_min, M = precio medio, L = precio_max
+        item_base = CATALOGO["mascota"]["aeropet_variable"]
+        precio_final = None
+        talla_detectada = None
 
-        if sku:
-            ctx, item = add_to_cart(ctx, sku)
+        if any(k in txt for k in ["talla s", "s", "peque", "pequeño", "pequeña"]):
+            talla_detectada = "S"
+            precio_final = item_base["precio_min"]
+        elif any(k in txt for k in ["talla m", "m", "med", "mediano", "mediana"]):
+            talla_detectada = "M"
+            # Precio medio entre min y max
+            precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
+        elif any(k in txt for k in ["talla l", "l", "gran", "grande"]):
+            talla_detectada = "L"
+            precio_final = item_base["precio_max"]
+        else:
+            talla_detectada = None
+
+        if talla_detectada and precio_final:
+            # Crear un item temporal con el precio específico de la talla
+            item_temp = {
+                "sku": f"{item_base['sku']}-{talla_detectada}",
+                "nombre": f"{item_base['nombre']} - Talla {talla_detectada}",
+                "precio_clp": precio_final,
+            }
+            cart = ctx.get("cart", [])
+            cart.append(
+                {
+                    "sku": item_temp["sku"],
+                    "nombre": item_temp["nombre"],
+                    "precio_clp": item_temp["precio_clp"],
+                    "qty": 1,
+                }
+            )
+            ctx["cart"] = cart
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"Agregué {item['nombre']} al carrito ({format_price(item['precio_clp'])}).\\n"
+                f"Agregué {item_temp['nombre']} al carrito ({format_price(item_temp['precio_clp'])}).\\n"
                 f"{summarize_order(ctx)}\\n\\n"
                 "Para emitir la orden necesito el NOMBRE del responsable, COMUNA/CIUDAD y TELÉFONO o EMAIL."
             )
         if intent == "sizing":
-            return style_msg("¿Gato/Perro pequeño, Perro mediano o Perro grande?")
-        return style_msg("¿Es GATO/Perro pequeño, Perro mediano o Perro grande?")
+            return style_msg("¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?")
+        return style_msg("¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)?")
 
     if sess.state == "COLLECT_DATA":
         if intent == "handoff":
@@ -1112,49 +1166,77 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(
                 "Te conecto con un asesor. ¿Podrías confirmar tu TELÉFONO o EMAIL?"
             )
-        if intent == "buy" or intent == "finalize":
+        if intent == "buy":
             # Intentar detectar qué producto quiere agregar
             txt_lower = user_text.lower()
             family = ctx.get("family", "")
             if family == "humana":
-                if "adulto" in txt_lower or "adult" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-H-ADUL", 1)
+                if any(k in txt_lower for k in ["bolso", "transportador"]):
+                    ctx, item = add_to_cart(ctx, "AERO-H-BOL", 1)
                     update_context(sess, ctx)
                     save_session(sess)
                     return style_msg(
                         f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
                     )
-                elif "pediá" in txt_lower or "niño" in txt_lower or "niña" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-H-PED", 1)
+                elif "mascarilla" in txt_lower:
+                    ctx, item = add_to_cart(ctx, "AERO-H-MASK", 1)
+                    update_context(sess, ctx)
+                    save_session(sess)
+                    return style_msg(
+                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
+                    )
+                elif any(k in txt_lower for k in ["adaptador", "circular"]):
+                    ctx, item = add_to_cart(ctx, "AERO-H-ADC", 1)
+                    update_context(sess, ctx)
+                    save_session(sess)
+                    return style_msg(
+                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
+                    )
+                elif "recambio" in txt_lower:
+                    ctx, item = add_to_cart(ctx, "AERO-H-REC", 1)
                     update_context(sess, ctx)
                     save_session(sess)
                     return style_msg(
                         f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
                     )
             elif family == "mascota":
-                if any(k in txt_lower for k in ["gato", "pequeño", "peque"]):
-                    ctx, item = add_to_cart(ctx, "AERO-M-GP", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
+                item_base = CATALOGO["mascota"]["aeropet_variable"]
+                precio_final = None
+                talla_detectada = None
+
+                if any(k in txt_lower for k in ["talla s", " s", "peque", "pequeño", "pequeña"]):
+                    talla_detectada = "S"
+                    precio_final = item_base["precio_min"]
+                elif any(k in txt_lower for k in ["talla m", " m", "med", "mediano", "mediana"]):
+                    talla_detectada = "M"
+                    precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
+                elif any(k in txt_lower for k in ["talla l", " l", "gran", "grande"]):
+                    talla_detectada = "L"
+                    precio_final = item_base["precio_max"]
+
+                if talla_detectada and precio_final:
+                    item_temp = {
+                        "sku": f"{item_base['sku']}-{talla_detectada}",
+                        "nombre": f"{item_base['nombre']} - Talla {talla_detectada}",
+                        "precio_clp": precio_final,
+                    }
+                    cart = ctx.get("cart", [])
+                    cart.append(
+                        {
+                            "sku": item_temp["sku"],
+                            "nombre": item_temp["nombre"],
+                            "precio_clp": item_temp["precio_clp"],
+                            "qty": 1,
+                        }
                     )
-                elif "mediano" in txt_lower or "medio" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-M-PM", 1)
+                    ctx["cart"] = cart
                     update_context(sess, ctx)
                     save_session(sess)
                     return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-                elif "grande" in txt_lower or "gran" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-M-PG", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
+                        f"Agregado: {item_temp['nombre']}\n\n{summarize_order(get_context(sess))}"
                     )
             return style_msg(
-                "Indícame el modelo o tamaño que deseas agregar, o usa el botón 'Finalizar' para cerrar."
+                "Indícame el modelo que deseas agregar, o usa el botón 'Finalizar' para cerrar."
             )
         if intent == "finalize" or "finalizar" in user_text.lower():
             save_session(sess, state="DONE")
@@ -1543,11 +1625,11 @@ def handle_callback(
             family = ctx.get("family", "")
             if family == "humana":
                 reply_msg = style_msg(
-                    "¿Qué deseas agregar? Indica: ADULTO o PEDIÁTRICO"
+                    "¿Qué modelo deseas agregar? Bolso transportador, Mascarilla, Adaptador circular o Recambio"
                 )
             elif family == "mascota":
                 reply_msg = style_msg(
-                    "¿Qué deseas agregar? Indica: GATO/Perro pequeño, Perro mediano o Perro grande"
+                    "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)"
                 )
             else:
                 reply_msg = style_msg("Primero elige si es para PERSONA o MASCOTA")
