@@ -217,7 +217,15 @@ def get_context(sess: SessionState) -> Dict[str, Any]:
 
 # ============= Estilo de respuesta (tono técnico + empático) =============
 def asis_prefix() -> str:
-    return "Hola, soy EMA 👋\n\n"
+    import random
+
+    greetings = [
+        "¡Hola! 👋 ",
+        "Hola, ¿cómo estás? 😊 ",
+        "¡Hola! Te ayudo con gusto. ",
+        "Hola, encantado de ayudarte. ",
+    ]
+    return random.choice(greetings)
 
 
 def vendedor_prefix() -> str:
@@ -225,30 +233,34 @@ def vendedor_prefix() -> str:
 
 
 def style_msg(text: str) -> str:
-    return f"{asis_prefix()}{vendedor_prefix()}{text}"
+    # Solo agregar prefijo en el primer mensaje, no en todos
+    return text
 
 
 # ============= NLG Variantes (evitar respuestas robóticas) =============
 NLG_VARIANTS = {
     "greet": [
-        "¿Buscas aerocámara para PERSONA o MASCOTA?",
-        "¿Es para uso en PERSONA o MASCOTA?",
-        "¿Aerocámara para PERSONA o MASCOTA?",
+        "¡Genial! ¿Es para una persona o para una mascota? 🐾",
+        "Perfecto, ¿buscas para persona o mascota?",
+        "Excelente, ¿es para uso humano o para tu mascota?",
+        "¡Claro! ¿Para quién es? ¿Persona o mascota?",
     ],
     "transition_qualify": [
-        "¿Es para PERSONA o MASCOTA?",
-        "¿Para PERSONA o MASCOTA?",
-        "¿Buscas para PERSONA o MASCOTA?",
+        "Ok, ¿es para persona o mascota?",
+        "Perfecto, ¿para persona o mascota?",
+        "Entendido, ¿es para uso humano o para mascota?",
+        "Claro, ¿para quién? ¿Persona o mascota?",
     ],
     "missing_data": [
-        "Perfecto, me faltan: {missing}.",
-        "Genial, solo me falta: {missing}.",
-        "Casi listo, me faltan: {missing}.",
+        "Casi listo 😊 Solo me faltan: {missing}.",
+        "Perfecto, solo necesito: {missing}.",
+        "Genial, me faltan estos datos: {missing}.",
+        "Ok, casi terminamos. Necesito: {missing}.",
     ],
     "finalize": [
-        "¡Listo! Te envié el resumen y el enlace de pago. ¿Necesitas instrucciones de uso?",
-        "Perfecto, tu pedido está listo. Encontrarás el enlace de pago arriba. ¿Alguna duda sobre el uso?",
-        "Excelente. Ya tienes el resumen y link de pago. ¿Te paso las instrucciones de uso?",
+        "¡Listo! 🎉 Tu pedido está completo. Te envié el resumen y el link de pago. ¿Te paso las instrucciones de uso?",
+        "¡Perfecto! ✨ Ya tienes todo listo. El link de pago está arriba. ¿Quieres que te explique cómo usarla?",
+        "Excelente, todo listo 😊 Tu resumen y link de pago ya están. ¿Necesitas ayuda con las instrucciones?",
     ],
 }
 
@@ -593,56 +605,55 @@ def list_options_site() -> str:
 
 def shipping_text() -> str:
     return (
-        "🚚 Envío GRATIS a todo Chile\n"
-        "⏱️ RM: 1 día | Regiones: 2-5 días\n"
-        "¿En qué comuna estás?"
+        "🚚 ¡Envío GRATIS a todo Chile!\n"
+        "⏱️ Si estás en RM: llegamos al día siguiente\n"
+        "⏱️ Otras regiones: 2 a 5 días\n\n"
+        "¿En qué comuna estás? Así te digo el tiempo exacto 😊"
     )
 
 
 def warranty_text() -> str:
-    return "Garantía 6 meses. Cambios/devoluciones según Ley Pro-Consumidor."
+    return "Tienes garantía de 6 meses por cualquier falla. Y si no te convence, puedes cambiarla o devolverla según la Ley Pro-Consumidor. ¡Tranquilo! 😊"
 
 
 def howto_text(tipo: str) -> str:
     if tipo == "humana":
-        return "Agita inhalador, acóplalo, sella en boca, 1 puff, inhala 5-6 veces."
+        return "Es súper fácil 😊 Primero agita el inhalador, luego acóplalo a la aerocámara, sella bien en la boca, presiona 1 puff y haz 5-6 respiraciones lentas y profundas. ¡Listo!"
     else:
-        return "Acopla inhalador, sella en hocico, 1 puff, permite 5-6 respiraciones."
+        return "Es muy simple 😊 Acopla el inhalador, sella suavemente la mascarilla en el hocico de tu mascota, administra 1 puff y deja que respire tranquilo 5-6 veces. ¡Tu peludo estará bien!"
 
 
 # ============= FAQ (Preguntas frecuentes) =============
 def faq_materials() -> str:
-    return (
-        "Grado médico, libres de BPA. Válvula sensible que se activa con la inhalación."
-    )
+    return "Son de grado médico, totalmente libres de BPA (súper seguras). Tienen una válvula súper sensible que se activa automáticamente cuando inhalas. ¡Todo certificado! 😊"
 
 
 def faq_cleaning() -> str:
-    return "Desarma, lava con agua tibia y jabón neutro, seca al aire. Ideal después de cada uso."
+    return "Es muy fácil de limpiar 😊 Solo desármala, lávala con agua tibia y jabón neutro, y déjala secar al aire (nada de estufa ni microondas). Lo ideal es limpiarla después de cada uso para que siempre esté impecable."
 
 
 def faq_compatibility() -> str:
-    return "Compatible con pMDI. Para DPI consulta con tu médico."
+    return "Sí, funciona perfecto con los inhaladores pMDI (los más comunes). Si tienes uno de polvo seco (DPI), mejor consulta con tu médico porque algunos pueden necesitar adaptador."
 
 
 def faq_stock() -> str:
-    return "Stock disponible. Para pedidos mayoristas, solicita cotización."
+    return "¡Sí! Tenemos stock disponible ahora mismo. Si necesitas pedir varias unidades (mayorista), avísame y te paso una cotización especial 😊"
 
 
 def faq_documents() -> str:
-    return "Emitimos boleta o factura. Para facturación necesitamos tu RUT."
+    return "Claro, emitimos boleta o factura, lo que necesites. Si quieres factura, solo necesito tu RUT o razón social. Todo 100% legal y con respaldo."
 
 
 # FAQ adicionales del sitio
 FAQ = {
-    "contacto": "📞 +569 9837 4924\n⏰ Lun-Sáb 9:00-21:00\n✉️ comunicaciones@aeroprochile.cl",
-    "sucursales": "🏪 Retiro en:\n• Las Condes (2 sucursales)\n• Los Álamos, Biobío\nTambién en Mercado Libre.",
-    "uso_web": "Agita inhalador, acóplalo, sella bien y realiza 5-6 respiraciones lentas.",
-    "mascarilla_sin": "Para mayores de 6 años. La boquilla directa es más efectiva. ¿Te interesa la versión con mascarilla?",
-    "edad_uso": "Recomendado para mayores de 6 años.",
-    "lavado": "Lávala 1 vez por semana. Agua fría y jabón suave, seca al aire. ¿Más detalles?",
-    "talla_mascota": "Mide el hocico (comisura del labio al borde):\n• S: hasta 5 cm\n• M: hasta 7 cm\n• L: hasta 9 cm",
-    "vannair": "Sí, tenemos adaptador circular compatible con Vannair. ¿Te interesa?",
+    "contacto": "📞 +569 9837 4924\n⏰ Estamos de Lunes a Sábado de 9:00 a 21:00\n✉️ comunicaciones@aeroprochile.cl\n\n¡Escríbenos cuando quieras! 😊",
+    "sucursales": "🏪 Puedes retirar en:\n• Las Condes (tenemos 2 sucursales ahí)\n• Los Álamos, en la Región del Biobío\n\nTambién estamos en Mercado Libre y Mercado Público. ¿Cuál te queda más cerca?",
+    "uso_web": "Es muy fácil 😊 Agita el inhalador, acóplalo a la aerocámara, sella bien (ya sea con la boquilla o mascarilla) y haz 5-6 respiraciones lentas y profundas. ¡Así de simple!",
+    "mascarilla_sin": "Las sin mascarilla son para mayores de 6 años. La boquilla directa es más efectiva porque el medicamento llega mejor a los pulmones. ¿Te interesa saber más de las que tienen mascarilla?",
+    "edad_uso": "Se recomienda para personas mayores de 6 años. Si es para alguien más pequeño, mejor la versión con mascarilla 😊",
+    "lavado": "Lo ideal es lavarla una vez por semana si la usas todos los días. Usa agua fría y jabón líquido suave, no la enjuagues mucho (así mantiene menos estática), y sécala al aire libre (nunca con toalla). ¿Quieres que te explique el proceso paso a paso?",
+    "talla_mascota": "Para saber la talla, mide el hocico desde la comisura del labio hasta el borde:\n• S: hasta 5 cm (pequeños)\n• M: hasta 7 cm (medianos)\n• L: hasta 9 cm (grandes)\n\n¿Ya tienes la medida de tu mascota?",
+    "vannair": "¡Sí! Tenemos aerocámara con adaptador circular que es compatible con Vannair. El ajuste es perfecto y sin filtraciones. ¿Te interesa más información o quieres comprarla?",
 }
 
 
@@ -742,11 +753,26 @@ def detect_city(text: str) -> tuple[Optional[str], Optional[str]]:
 def shipping_info_by_city(city: str, zone: str) -> str:
     """Retorna información de envío según zona."""
     if zone == "RM":
-        return f"📍 {city}\n" "🚚 Envío GRATIS\n" "⏱️ 1 día (compra antes 23:00)"
+        return (
+            f"📍 Perfecto, {city} está en la RM\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Si compras antes de las 23:00, llegamos al día siguiente\n"
+            "¿Te funciona ese tiempo? 😊"
+        )
     elif zone in ["V", "VI"]:
-        return f"📍 {city}\n" "🚚 Envío GRATIS\n" "⏱️ 48 horas"
+        return (
+            f"📍 Genial, {city}\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Te llegará en aproximadamente 48 horas\n"
+            "¿Te funciona? 😊"
+        )
     else:
-        return f"📍 {city}\n" "🚚 Envío GRATIS\n" "⏱️ 2-5 días"
+        return (
+            f"📍 Ok, {city}\n"
+            "🚚 Envío GRATIS\n"
+            "⏱️ Te llegará en 2 a 5 días\n"
+            "¿Te funciona ese tiempo? 😊"
+        )
 
 
 # ============= Carrito / pedido =============
@@ -850,28 +876,30 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
     if intent == "prod_bolso":
         item = CATALOGO["humana"]["bolso"]
         return style_msg(
-            f"{item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Deseas añadirlo al carrito? Ver: {item['url']}"
+            f"¡Excelente elección! 😊 {item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Te lo agrego al carrito?\n\nVer más detalles: {item['url']}"
         )
     if intent == "prod_mascarilla":
         item = CATALOGO["humana"]["mascarilla"]
         return style_msg(
-            f"{item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Lo agrego al carrito? Ver: {item['url']}"
+            f"¡Perfecto! 😊 {item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Lo agrego al carrito?\n\nVer más: {item['url']}"
         )
     if intent == "prod_adaptador":
         item = CATALOGO["humana"]["adaptador_circular"]
         return style_msg(
-            f"{item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Lo agrego al carrito? Ver: {item['url']}"
+            f"¡Genial! 😊 {item['nombre']} cuesta {format_price(item['precio_clp'])}. ¿Te lo agrego al carrito?\n\nVer más: {item['url']}"
         )
     if intent == "prod_recambio":
         item = CATALOGO["humana"]["recambio"]
         return style_msg(
-            f"{item['nombre']} cuesta {format_price(item['precio_clp'])} (si ya tienes bolso). ¿Lo agrego? Ver: {item['url']}"
+            f"¡Perfecto! 😊 {item['nombre']} cuesta {format_price(item['precio_clp'])} (ideal si ya tienes el bolso). ¿Lo agrego?\n\nVer más: {item['url']}"
         )
     if intent == "prod_mascota":
         item = CATALOGO["mascota"]["aeropet_variable"]
         return style_msg(
-            f"{item['nombre']}: {format_price(item['precio_min'])} - {format_price(item['precio_max'])} según talla.\n"
-            f"Indica talla (S/M/L). Ver: {item['url']}"
+            f"¡Genial! {item['nombre']} 🐾\n"
+            f"El precio varía según la talla: entre {format_price(item['precio_min'])} y {format_price(item['precio_max'])}\n\n"
+            f"Dime qué talla necesitas (S/M/L) y te confirmo el precio exacto 😊\n"
+            f"Ver más: {item['url']}"
         )
 
     if sess.state == "START":
@@ -879,12 +907,19 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         save_session(sess, state="QUALIFY")
         greet_msg = get_variant("greet")
         if not greet_msg:
-            greet_msg = style_msg("¿Para PERSONA o MASCOTA?")
+            greet_msg = (
+                asis_prefix()
+                + "¿Buscas aerocámara para una persona o para una mascota?"
+            )
+        else:
+            greet_msg = asis_prefix() + greet_msg
         return greet_msg
 
     if sess.state == "QUALIFY":
         if intent == "handoff":
-            return style_msg("Te derivo a un asesor. Déjame tu TELÉFONO o EMAIL.")
+            return style_msg(
+                "Claro, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y te contactan a la brevedad."
+            )
 
         # FAQ en QUALIFY
         if intent == "faq_materials":
@@ -919,26 +954,28 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 update_context(sess, {"family": "humana"})
                 save_session(sess, state="HUMAN_DETAIL")
                 return style_msg(
-                    f"Opciones para PERSONAS:\n{list_options_human()}\n\n¿Qué modelo prefieres?"
+                    f"¡Perfecto! 😊 Aquí tienes las opciones para personas:\n\n{list_options_human()}\n\n¿Cuál te gusta más? Puedo ayudarte a elegir si tienes dudas."
                 )
             if any(k in txt for k in ["mascota", "perro", "gato"]):
                 update_context(sess, {"family": "mascota"})
                 save_session(sess, state="PET_DETAIL")
                 return style_msg(
-                    f"Opciones para MASCOTAS:\n{list_options_pet()}\n\n¿Qué talla? S/M/L"
+                    f"¡Excelente! 🐾 Aquí están las opciones para mascotas:\n\n{list_options_pet()}\n\n¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir 😊"
                 )
-            return style_msg("¿PERSONA o MASCOTA?")
+            return style_msg("Ok, ¿es para una persona o para una mascota? 😊")
 
         if intent == "ask_price":
             return style_msg(
-                f"Modelos disponibles:\n{list_options_site()}\n\n¿Cuál te interesa?"
+                f"¡Claro! 😊 Aquí están todos los modelos disponibles:\n\n{list_options_site()}\n\n¿Cuál te llama más la atención? Puedo ayudarte a decidir."
             )
         if intent == "buy":
             save_session(sess, state="QUALIFY")
-            return style_msg("Primero elige: ¿PERSONA o MASCOTA?")
+            return style_msg(
+                "¡Genial que quieras comprar! 😊 Primero dime, ¿es para una persona o para una mascota? Así te muestro las opciones perfectas."
+            )
 
         return style_msg(
-            get_variant("transition_qualify") or "¿Es para PERSONA o MASCOTA?"
+            get_variant("transition_qualify") or "Ok, ¿es para persona o mascota? 😊"
         )
 
     if sess.state == "HUMAN_DETAIL":
@@ -962,11 +999,14 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         if intent == "faq_uso":
             return style_msg(FAQ["uso_web"])
         if intent == "ask_price":
-            return style_msg(f"Precios para PERSONAS:\n{list_options_human()}")
+            return style_msg(
+                f"¡Claro! 😊 Aquí están los precios para personas:\n\n{list_options_human()}\n\n¿Te interesa alguno en particular?"
+            )
         if "volver" in txt:
             save_session(sess, state="QUALIFY")
             return style_msg(
-                get_variant("transition_qualify") or "¿Es para PERSONA o MASCOTA?"
+                get_variant("transition_qualify")
+                or "Ok, ¿es para persona o mascota? 😊"
             )
 
         # Detectar productos específicos del nuevo catálogo
@@ -976,9 +1016,13 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"✓ Agregado: {item['nombre']} ({format_price(item['precio_clp'])})\n"
+                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
                 f"{summarize_order(ctx)}\n\n"
-                "Necesito: NOMBRE, COMUNA y TELÉFONO o EMAIL."
+                "Para completar tu pedido, necesito:\n"
+                "• Tu nombre\n"
+                "• Comuna o ciudad\n"
+                "• Teléfono o email\n\n"
+                "¿Me los puedes compartir? 😊"
             )
         if "mascarilla" in txt:
             sku = CATALOGO["humana"]["mascarilla"]["sku"]
@@ -986,9 +1030,13 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"✓ Agregado: {item['nombre']} ({format_price(item['precio_clp'])})\n"
+                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
                 f"{summarize_order(ctx)}\n\n"
-                "Necesito: NOMBRE, COMUNA y TELÉFONO o EMAIL."
+                "Para completar tu pedido, necesito:\n"
+                "• Tu nombre\n"
+                "• Comuna o ciudad\n"
+                "• Teléfono o email\n\n"
+                "¿Me los puedes compartir? 😊"
             )
         if any(k in txt for k in ["adaptador", "circular"]):
             sku = CATALOGO["humana"]["adaptador_circular"]["sku"]
@@ -996,9 +1044,13 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"✓ Agregado: {item['nombre']} ({format_price(item['precio_clp'])})\n"
+                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
                 f"{summarize_order(ctx)}\n\n"
-                "Necesito: NOMBRE, COMUNA y TELÉFONO o EMAIL."
+                "Para completar tu pedido, necesito:\n"
+                "• Tu nombre\n"
+                "• Comuna o ciudad\n"
+                "• Teléfono o email\n\n"
+                "¿Me los puedes compartir? 😊"
             )
         if "recambio" in txt:
             sku = CATALOGO["humana"]["recambio"]["sku"]
@@ -1006,16 +1058,20 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"✓ Agregado: {item['nombre']} ({format_price(item['precio_clp'])})\n"
+                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
                 f"{summarize_order(ctx)}\n\n"
-                "Necesito: NOMBRE, COMUNA y TELÉFONO o EMAIL."
+                "Para completar tu pedido, necesito:\n"
+                "• Tu nombre\n"
+                "• Comuna o ciudad\n"
+                "• Teléfono o email\n\n"
+                "¿Me los puedes compartir? 😊"
             )
         if intent == "sizing":
             return style_msg(
-                "¿Qué modelo prefieres? Bolso, Mascarilla, Adaptador o Recambio?"
+                "¿Qué modelo te gusta más? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te convence? 😊"
             )
         return style_msg(
-            "¿Qué modelo prefieres? Bolso, Mascarilla, Adaptador o Recambio?"
+            "¿Qué modelo prefieres? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te parece mejor? 😊"
         )
 
     if sess.state == "PET_DETAIL":
@@ -1039,11 +1095,14 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         if intent == "faq_uso":
             return style_msg(FAQ["uso_web"])
         if intent == "ask_price":
-            return style_msg(f"Precios para MASCOTAS:\n{list_options_pet()}")
+            return style_msg(
+                f"¡Perfecto! 🐾 Aquí están los precios para mascotas:\n\n{list_options_pet()}\n\n¿Te interesa alguna talla en particular?"
+            )
         if "volver" in txt:
             save_session(sess, state="QUALIFY")
             return style_msg(
-                get_variant("transition_qualify") or "¿Es para PERSONA o MASCOTA?"
+                get_variant("transition_qualify")
+                or "Ok, ¿es para persona o mascota? 😊"
             )
 
         # Detectar tallas para aeropet (precio variable)
@@ -1085,18 +1144,26 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
             return style_msg(
-                f"✓ Agregado: {item_temp['nombre']} ({format_price(item_temp['precio_clp'])})\n"
+                f"¡Excelente! ✓ Agregué {item_temp['nombre']} ({format_price(item_temp['precio_clp'])})\n\n"
                 f"{summarize_order(ctx)}\n\n"
-                "Necesito: NOMBRE, COMUNA y TELÉFONO o EMAIL."
+                "Para completar tu pedido, necesito:\n"
+                "• Nombre del responsable\n"
+                "• Comuna o ciudad\n"
+                "• Teléfono o email\n\n"
+                "¿Me los puedes compartir? 😊"
             )
         if intent == "sizing":
-            return style_msg("¿Qué talla? S/M/L")
-        return style_msg("¿Qué talla? S/M/L")
+            return style_msg(
+                "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir el hocico 😊"
+            )
+        return style_msg(
+            "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si tienes dudas, te ayudo a elegir la correcta 😊"
+        )
 
     if sess.state == "COLLECT_DATA":
         if intent == "handoff":
             return style_msg(
-                "Un asesor te contactará. Déjame TELÉFONO o EMAIL y comuna."
+                "Perfecto, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y la comuna donde estás, así te contactan rápido."
             )
 
         # Manejar FAQ en COLLECT_DATA también
@@ -1164,7 +1231,9 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             missing_str = ", ".join(missing)
             reply = get_variant("missing_data", missing=missing_str)
             if not reply:
-                reply = style_msg(f"Faltan: {missing_str}.")
+                reply = style_msg(
+                    f"Casi terminamos 😊 Solo me faltan: {missing_str}. ¿Me los puedes compartir?"
+                )
             return reply
 
         persist_lead(
@@ -1185,16 +1254,20 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         shipping_msg = shipping_info_by_city(city, zone) if zone else shipping_text()
 
         return style_msg(
+            f"¡Excelente! Tu pedido está casi listo 🎉\n\n"
             f"{summarize_order(get_context(sess))}\n\n"
-            f"Cliente: {name} — {city} — {phone or email}\n\n"
-            f"{shipping_msg}\n{warranty_text()}\n\n"
-            f"Link de pago: {pay_link}\n"
-            "¿Agregar otra unidad o finalizar?"
+            f"📋 Tus datos:\n{name} — {city} — {phone or email}\n\n"
+            f"{shipping_msg}\n\n"
+            f"{warranty_text()}\n\n"
+            f"💳 Link de pago: {pay_link}\n\n"
+            "¿Quieres agregar otra unidad o accesorio, o prefieres finalizar ya? 😊"
         )
 
     if sess.state == "CLOSE":
         if intent == "handoff":
-            return style_msg("Te conecto con un asesor. Confirma tu TELÉFONO o EMAIL.")
+            return style_msg(
+                "Claro, te conecto con uno de nuestros asesores 😊 ¿Puedes confirmarme tu teléfono o email para que te contacten?"
+            )
         if intent == "buy":
             # Intentar detectar qué producto quiere agregar
             txt_lower = user_text.lower()
@@ -1272,13 +1345,15 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                     return style_msg(
                         f"Agregado: {item_temp['nombre']}\n\n{summarize_order(get_context(sess))}"
                     )
-            return style_msg("Indica el modelo a agregar o usa 'Finalizar'.")
+            return style_msg(
+                "Dime qué modelo quieres agregar, o si ya terminaste, puedes usar el botón 'Finalizar' 😊"
+            )
         if intent == "finalize" or "finalizar" in user_text.lower():
             save_session(sess, state="DONE")
             finalize_msg = get_variant("finalize")
             if not finalize_msg:
                 finalize_msg = style_msg(
-                    "✓ Pedido listo. ¿Necesitas instrucciones de uso?"
+                    "¡Listo! 🎉 Tu pedido está completo. Ya tienes el resumen y el link de pago arriba. ¿Quieres que te explique cómo usar la aerocámara? 😊"
                 )
             return finalize_msg
         if intent == "howto" or intent == "faq_uso":
@@ -1320,15 +1395,23 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(FAQ["talla_mascota"])
         if intent == "faq_vannair":
             return style_msg(FAQ["vannair"])
-        return style_msg("¿Alguna duda antes de finalizar?")
+        return style_msg(
+            "¿Tienes alguna duda antes de finalizar? Estoy aquí para ayudarte 😊"
+        )
 
     # Intentos sin estado específico
     if intent == "channel_info":
-        return style_msg("Disponible en Web, WhatsApp, Instagram y Telegram.")
+        return style_msg(
+            "Estoy disponible en nuestro sitio web, WhatsApp, Instagram y Telegram 😊 ¿Por cuál prefieres continuar?"
+        )
     if intent == "ask_price":
-        return style_msg("¿Para PERSONA o MASCOTA?")
+        return style_msg(
+            "¡Claro! 😊 ¿Es para una persona o para una mascota? Así te doy el precio exacto y te recomiendo la mejor opción."
+        )
     if intent == "howto":
-        return style_msg("¿Para PERSONA o MASCOTA?")
+        return style_msg(
+            "¡Perfecto! 😊 ¿Es para una persona o para una mascota? Te explico el uso paso a paso según tu caso."
+        )
     if intent == "faq_materials":
         return style_msg(faq_materials())
     if intent == "faq_cleaning":
@@ -1367,10 +1450,12 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
     if detected_city:
         shipping_info = shipping_info_by_city(detected_city, zone)
         return style_msg(
-            f"📍 {detected_city}\n{shipping_info}\n\n¿Continuar con tu pedido?"
+            f"¡Perfecto! Detecté que estás en {detected_city} 😊\n\n{shipping_info}\n\n¿Te gustaría continuar con tu pedido?"
         )
 
-    return style_msg("No entendí. ¿Para PERSONA o MASCOTA?")
+    return style_msg(
+        "Ups, no entendí bien 😅 ¿Puedes repetirlo? ¿Es para una persona o para una mascota?"
+    )
 
 
 # ============= Canal: Sitio Web (REST simple) =============
@@ -1657,7 +1742,9 @@ def handle_callback(
         save_session(sess, state="DONE")
         reply_msg = get_variant("finalize")
         if not reply_msg:
-            reply_msg = style_msg("✓ Pedido listo. ¿Necesitas instrucciones de uso?")
+            reply_msg = style_msg(
+                "¡Listo! 🎉 Tu pedido está completo. Ya tienes el resumen y el link de pago arriba. ¿Quieres que te explique cómo usar la aerocámara? 😊"
+            )
         telegram_answer_callback(callback_id, "Pedido finalizado ✓")
         return (reply_msg, None, {"remove_keyboard": True})
 
@@ -1668,12 +1755,16 @@ def handle_callback(
             family = ctx.get("family", "")
             if family == "humana":
                 reply_msg = style_msg(
-                    "¿Qué modelo? Bolso, Mascarilla, Adaptador o Recambio"
+                    "¡Claro! 😊 ¿Qué modelo quieres agregar? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te gusta?"
                 )
             elif family == "mascota":
-                reply_msg = style_msg("¿Qué talla? S/M/L")
+                reply_msg = style_msg(
+                    "¡Perfecto! 🐾 ¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si tienes dudas, te ayudo 😊"
+                )
             else:
-                reply_msg = style_msg("Elige: ¿PERSONA o MASCOTA?")
+                reply_msg = style_msg(
+                    "Ok, primero dime: ¿es para una persona o para una mascota? 😊"
+                )
             telegram_answer_callback(callback_id, "Elige el producto a agregar")
             return (reply_msg, None, None)
         else:
@@ -1702,7 +1793,7 @@ def handle_callback(
     elif callback_data == "handoff":
         save_session(sess, state="COLLECT_DATA")
         reply_msg = style_msg(
-            "Te derivo a un asesor. Déjame TELÉFONO o EMAIL y comuna."
+            "Perfecto, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y la comuna donde estás, así te contactan rápido."
         )
         telegram_answer_callback(callback_id, "Te contactaremos pronto")
         return (reply_msg, None, None)
