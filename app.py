@@ -401,6 +401,26 @@ def classify_intent(text: str) -> str:
         ]
     ):
         return "faq_uso"
+    # Detectar cuando el usuario pide ayuda para medir (debe ir antes de sizing)
+    if any(
+        k in t
+        for k in [
+            "ayúdame a medir",
+            "ayuda a medir",
+            "ayudame a medir",
+            "ayudame medir",
+            "ayuda medir",
+            "cómo medir",
+            "como medir",
+            "como mido",
+            "cómo mido",
+            "necesito medir",
+            "quiero medir",
+            "medir el hocico",
+            "medir hocico",
+        ]
+    ):
+        return "help_measure"
     if any(k in t for k in ["tamaño", "medida", "size", "modelo", "talla"]):
         return "sizing"
     # FAQ intents
@@ -611,7 +631,7 @@ FAQ = {
     "mascarilla_sin": "Las sin mascarilla son para mayores de 6 años. La boquilla directa es más efectiva porque el medicamento llega mejor a los pulmones. ¿Te interesa saber más de las que tienen mascarilla?",
     "edad_uso": "Se recomienda para personas mayores de 6 años. Si es para alguien más pequeño, mejor la versión con mascarilla 😊",
     "lavado": "Lo ideal es lavarla una vez por semana si la usas todos los días. Usa agua fría y jabón líquido suave, no la enjuagues mucho (así mantiene menos estática), y sécala al aire libre (nunca con toalla). ¿Quieres que te explique el proceso paso a paso?",
-    "talla_mascota": "Para saber la talla, mide el hocico desde la comisura del labio hasta el borde:\n• S: hasta 5 cm (pequeños)\n• M: hasta 7 cm (medianos)\n• L: hasta 9 cm (grandes)\n\n¿Ya tienes la medida de tu mascota?",
+    "talla_mascota": "Para elegir la talla correcta de mascarilla para inhalación, es importante medir el hocico de tu mascota. Solo necesitas una regla o una cinta métrica flexible.\n\n¿Cómo medir correctamente?\n1. Mide desde el inicio de la comisura del labio hasta el borde del hocico.\n2. Toma el diámetro aproximado de esa zona.\n\nTallas disponibles:\n• Talla S → Para hocicos de hasta 5 cm de diámetro\n• Talla M → Para hocicos de hasta 7 cm de diámetro\n• Talla L → Para hocicos de hasta 9 cm de diámetro\n\nRecuerda: una mascarilla bien ajustada asegura una mejor administración del medicamento.\n\n¿Ya tienes la medida de tu mascota?",
     "vannair": "¡Sí! Tenemos aerocámara con adaptador circular que es compatible con Vannair. El ajuste es perfecto y sin filtraciones. ¿Te interesa más información o quieres comprarla?",
 }
 
@@ -1065,6 +1085,9 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(
                 f"¡Perfecto! 🐾 Aquí están los precios para mascotas:\n\n{list_options_pet()}\n\n¿Te interesa alguna talla en particular?"
             )
+        # Manejar cuando el usuario pide ayuda para medir (prioridad alta)
+        if intent == "help_measure" or intent == "faq_talla_mascota":
+            return style_msg(FAQ["talla_mascota"])
         if "volver" in txt:
             save_session(sess, state="QUALIFY")
             return style_msg(
@@ -1073,21 +1096,42 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             )
 
         # Detectar tallas para aeropet (precio variable)
+        # IMPORTANTE: Solo detectar tallas si NO es una petición de ayuda para medir
         # Mapeo aproximado: S = precio_min, M = precio medio, L = precio_max
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         precio_final = None
         talla_detectada = None
 
-        if any(k in txt for k in ["talla s", "s", "peque", "pequeño", "pequeña"]):
-            talla_detectada = "S"
-            precio_final = item_base["precio_min"]
-        elif any(k in txt for k in ["talla m", "m", "med", "mediano", "mediana"]):
-            talla_detectada = "M"
-            # Precio medio entre min y max
-            precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
-        elif any(k in txt for k in ["talla l", "l", "gran", "grande"]):
-            talla_detectada = "L"
-            precio_final = item_base["precio_max"]
+        # Solo detectar tallas si NO es una petición de ayuda para medir
+        # Verificar que no contenga palabras clave de ayuda para medir
+        help_keywords = [
+            "ayúdame",
+            "ayuda",
+            "cómo",
+            "como",
+            "mido",
+            "medir",
+            "necesito medir",
+            "quiero medir",
+        ]
+        is_help_request = any(keyword in txt for keyword in help_keywords)
+
+        if not is_help_request:
+            if any(k in txt for k in ["talla s", " s", "peque", "pequeño", "pequeña"]):
+                talla_detectada = "S"
+                precio_final = item_base["precio_min"]
+            elif (
+                any(k in txt for k in ["talla m", " m", "mediano", "mediana"])
+                and "medir" not in txt
+            ):
+                talla_detectada = "M"
+                # Precio medio entre min y max
+                precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
+            elif any(k in txt for k in ["talla l", " l", "gran", "grande"]):
+                talla_detectada = "L"
+                precio_final = item_base["precio_max"]
+            else:
+                talla_detectada = None
         else:
             talla_detectada = None
 
