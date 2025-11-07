@@ -240,10 +240,10 @@ def style_msg(text: str) -> str:
 # ============= NLG Variantes (evitar respuestas robóticas) =============
 NLG_VARIANTS = {
     "greet": [
-        "¡Genial! ¿Es para una persona o para una mascota? 🐾",
-        "Perfecto, ¿buscas para persona o mascota?",
-        "Excelente, ¿es para uso humano o para tu mascota?",
-        "¡Claro! ¿Para quién es? ¿Persona o mascota?",
+        "¡Hola! 👋 Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?",
+        "¡Hola! 😊 Encantado de conocerte. ¿Es para una persona o para una mascota?",
+        "Hola, ¿cómo estás? 😊 Estoy aquí para ayudarte. ¿Necesitas una aerocámara para persona o para mascota?",
+        "¡Hola! 👋 Bienvenido. ¿Buscas aerocámara para una persona o para tu mascota?",
     ],
     "transition_qualify": [
         "Ok, ¿es para persona o mascota?",
@@ -279,36 +279,16 @@ def get_variant(key: str, **kwargs) -> str:
 # ============= Telegram ReplyKeyboard =============
 def build_keyboard(state: str | None) -> dict | None:
     """Devuelve un reply_markup con teclado rápido según el estado."""
-    rows: list[list[str]] = []
     st = (state or "").upper()
-    if st in ("START", "QUALIFY", ""):
-        rows = [["Persona", "Mascota"], ["Precio", "Envío"], ["Hablar con asesor"]]
-    elif st == "HUMAN_DETAIL":
-        rows = [
-            ["Bolso", "Mascarilla"],
-            ["Adaptador Circular", "Recambio"],
-            ["Ver precios", "Envío"],
-            ["Volver"],
-        ]
-    elif st == "PET_DETAIL":
-        rows = [
-            ["Talla S", "Talla M", "Talla L"],
-            ["Ver precios", "Envío"],
-            ["Volver"],
-        ]
-    elif st == "COLLECT_DATA":
-        rows = [["Enviar datos"], ["Envío", "Garantía"], ["Hablar con asesor"]]
-    elif st == "CLOSE":
-        rows = [
-            ["Finalizar", "Agregar otra unidad"],
-            ["Instrucciones", "Envío"],
-            ["Garantía"],
-        ]
-    elif st == "DONE":
+
+    # Solo mostrar botón "Hablar con asesor" en todos los estados excepto DONE
+    if st == "DONE":
         # En DONE removemos el teclado
         return {"remove_keyboard": True}
-    if not rows:
-        return None
+
+    # En todos los demás estados, solo mostrar "Hablar con asesor"
+    rows = [["Hablar con asesor"]]
+
     return {
         "keyboard": [[{"text": b} for b in r] for r in rows],
         "resize_keyboard": True,
@@ -322,29 +302,8 @@ def build_inline_keyboard(state: str | None, ctx: Optional[Dict] = None) -> dict
     st = (state or "").upper()
     buttons = []
 
-    if st in ("QUALIFY", "HUMAN_DETAIL", "PET_DETAIL"):
-        buttons.append(
-            [
-                {
-                    "text": "Ver precios",
-                    "callback_data": f"see_prices:{ctx.get('family', 'all') if ctx else 'all'}",
-                },
-                {"text": "Hablar con asesor", "callback_data": "handoff"},
-            ]
-        )
-    elif st == "CLOSE":
-        buttons.append(
-            [
-                {"text": "Finalizar", "callback_data": "finalize_order"},
-                {"text": "Agregar otra unidad", "callback_data": "add_unit:menu"},
-            ]
-        )
-        # Agregar botón de ver precios también
-        family = ctx.get("family", "") if ctx else ""
-        if family:
-            buttons.append(
-                [{"text": "Ver precios", "callback_data": f"see_prices:{family}"}]
-            )
+    # Solo mostrar botón "Hablar con asesor" en todos los estados
+    buttons.append([{"text": "Hablar con asesor", "callback_data": "handoff"}])
 
     if not buttons:
         return None
@@ -905,17 +864,25 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
     if sess.state == "START":
         update_context(sess, {"cart": []})
         save_session(sess, state="QUALIFY")
+        # Saludo completo y coherente en el primer contacto
+        # Las variantes de greet ya incluyen el saludo completo
         greet_msg = get_variant("greet")
         if not greet_msg:
+            # Si no hay variante, usar saludo por defecto
             greet_msg = (
                 asis_prefix()
-                + "¿Buscas aerocámara para una persona o para una mascota?"
+                + "Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?"
             )
-        else:
-            greet_msg = asis_prefix() + greet_msg
+        # Las variantes ya tienen saludo completo, no agregar prefijo adicional
         return greet_msg
 
     if sess.state == "QUALIFY":
+        # Si el usuario saluda, responder con saludo apropiado
+        if intent == "greet":
+            return style_msg(
+                "¡Hola! 👋 Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?"
+            )
+
         if intent == "handoff":
             return style_msg(
                 "Claro, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y te contactan a la brevedad."
@@ -1260,7 +1227,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             f"{shipping_msg}\n\n"
             f"{warranty_text()}\n\n"
             f"💳 Link de pago: {pay_link}\n\n"
-            "¿Quieres agregar otra unidad o accesorio, o prefieres finalizar ya? 😊"
+            "Si necesitas algo más o tienes alguna duda, solo dime 😊"
         )
 
     if sess.state == "CLOSE":
@@ -1346,7 +1313,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                         f"Agregado: {item_temp['nombre']}\n\n{summarize_order(get_context(sess))}"
                     )
             return style_msg(
-                "Dime qué modelo quieres agregar, o si ya terminaste, puedes usar el botón 'Finalizar' 😊"
+                "Dime qué modelo quieres agregar o si necesitas algo más 😊"
             )
         if intent == "finalize" or "finalizar" in user_text.lower():
             save_session(sess, state="DONE")
@@ -1395,9 +1362,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return style_msg(FAQ["talla_mascota"])
         if intent == "faq_vannair":
             return style_msg(FAQ["vannair"])
-        return style_msg(
-            "¿Tienes alguna duda antes de finalizar? Estoy aquí para ayudarte 😊"
-        )
+        return style_msg("¿Tienes alguna duda? Estoy aquí para ayudarte 😊")
 
     # Intentos sin estado específico
     if intent == "channel_info":
@@ -1738,59 +1703,10 @@ def handle_callback(
     sess = get_session(channel, user_id)
     ctx = get_context(sess)
 
-    if callback_data == "finalize_order":
-        save_session(sess, state="DONE")
-        reply_msg = get_variant("finalize")
-        if not reply_msg:
-            reply_msg = style_msg(
-                "¡Listo! 🎉 Tu pedido está completo. Ya tienes el resumen y el link de pago arriba. ¿Quieres que te explique cómo usar la aerocámara? 😊"
-            )
-        telegram_answer_callback(callback_id, "Pedido finalizado ✓")
-        return (reply_msg, None, {"remove_keyboard": True})
-
-    elif callback_data.startswith("add_unit:"):
-        sku_param = callback_data.split(":", 1)[1] if ":" in callback_data else "menu"
-        if sku_param == "menu":
-            # Mostrar opciones para agregar
-            family = ctx.get("family", "")
-            if family == "humana":
-                reply_msg = style_msg(
-                    "¡Claro! 😊 ¿Qué modelo quieres agregar? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te gusta?"
-                )
-            elif family == "mascota":
-                reply_msg = style_msg(
-                    "¡Perfecto! 🐾 ¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si tienes dudas, te ayudo 😊"
-                )
-            else:
-                reply_msg = style_msg(
-                    "Ok, primero dime: ¿es para una persona o para una mascota? 😊"
-                )
-            telegram_answer_callback(callback_id, "Elige el producto a agregar")
-            return (reply_msg, None, None)
-        else:
-            # Agregar SKU específico
-            ctx, item = add_to_cart(ctx, sku_param, 1)
-            update_context(sess, ctx)
-            save_session(sess)
-            telegram_answer_callback(callback_id, f"Agregado: {item['nombre']}")
-            reply_msg = style_msg(f"{summarize_order(get_context(sess))}")
-            inline_kb = build_inline_keyboard("CLOSE", get_context(sess))
-            return (reply_msg, inline_kb, None)
-
-    elif callback_data.startswith("see_prices:"):
-        family_param = callback_data.split(":", 1)[1] if ":" in callback_data else "all"
-        if family_param == "humana" or family_param == "all":
-            reply_msg = style_msg(f"Precios para PERSONAS:\n{list_options_human()}")
-        elif family_param == "mascota" or family_param == "all":
-            reply_msg = style_msg(f"Precios para MASCOTAS:\n{list_options_pet()}")
-        else:
-            reply_msg = style_msg(
-                f"Precios:\n{list_options_human()}\n\n{list_options_pet()}"
-            )
-        telegram_answer_callback(callback_id, "Aquí están los precios")
-        return (reply_msg, None, None)
-
-    elif callback_data == "handoff":
+    # Solo manejar el callback de "hablar con asesor"
+    # Los demás callbacks (finalize_order, add_unit, see_prices) ya no se usan
+    # porque solo mostramos el botón "Hablar con asesor"
+    if callback_data == "handoff":
         save_session(sess, state="COLLECT_DATA")
         reply_msg = style_msg(
             "Perfecto, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y la comuna donde estás, así te contactan rápido."
