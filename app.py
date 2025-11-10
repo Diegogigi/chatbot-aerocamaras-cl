@@ -89,7 +89,9 @@ TELEGRAM_SECRET_TOKEN = os.getenv("TELEGRAM_SECRET_TOKEN", "")
 
 # OpenRouter (IA)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+OPENROUTER_MODEL = os.getenv(
+    "OPENROUTER_MODEL", "google/gemma-2-9b-it:free"
+)
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://aeroprochile.cl")
 OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "aerobot")
 
