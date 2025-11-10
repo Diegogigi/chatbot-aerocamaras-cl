@@ -309,25 +309,40 @@ def build_inline_keyboard(state: str | None, ctx: Optional[Dict] = None) -> dict
     """Devuelve un inline_keyboard según el estado."""
     st = (state or "").upper()
     buttons = []
-    
+
     # Botones de productos para HUMAN_DETAIL
     if st == "HUMAN_DETAIL":
         buttons = [
-            [{"text": "🎒 Bolso transportador ($21.990)", "callback_data": "prod_bolso"}],
-            [{"text": "😷 Con mascarilla ($25.990)", "callback_data": "prod_mascarilla"}],
-            [{"text": "⭕ Adaptador circular ($21.990)", "callback_data": "prod_adaptador"}],
-            [{"text": "🔄 Recambio ($12.990)", "callback_data": "prod_recambio"}],
+            [
+                {
+                    "text": "🎒 Aerocámara + Bolso ($21.990)",
+                    "callback_data": "prod_bolso",
+                }
+            ],
+            [
+                {
+                    "text": "😷 Aerocámara + Mascarilla ($25.990)",
+                    "callback_data": "prod_mascarilla",
+                }
+            ],
+            [
+                {
+                    "text": "⭕ Aerocámara + Adaptador circular ($21.990)",
+                    "callback_data": "prod_adaptador",
+                }
+            ],
+            [{"text": "🔄 Aerocámara Recambio ($12.990)", "callback_data": "prod_recambio"}],
         ]
-    
+
     # Botones de tallas para PET_DETAIL
     elif st == "PET_DETAIL":
         buttons = [
-            [{"text": "🐕 Talla S ($20.990)", "callback_data": "pet_talla_s"}],
-            [{"text": "🐕 Talla M ($28.990)", "callback_data": "pet_talla_m"}],
-            [{"text": "🐕 Talla L ($36.990)", "callback_data": "pet_talla_l"}],
+            [{"text": "🐕 AeroPet Talla S - Pequeña ($20.990)", "callback_data": "pet_talla_s"}],
+            [{"text": "🐕 AeroPet Talla M - Mediana ($28.990)", "callback_data": "pet_talla_m"}],
+            [{"text": "🐕 AeroPet Talla L - Grande ($36.990)", "callback_data": "pet_talla_l"}],
             [{"text": "📏 Ayuda para medir", "callback_data": "help_measure"}],
         ]
-    
+
     if not buttons:
         return None
     return {"inline_keyboard": buttons}
@@ -1140,7 +1155,19 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             )
 
         # Detectar si el usuario confirma agregar el producto previamente seleccionado
-        if ctx.get("selected_product") and any(k in txt for k in ["sí", "si ", "dale", "agregar", "agregalo", "ok", "confirmo", "quiero"]):
+        if ctx.get("selected_product") and any(
+            k in txt
+            for k in [
+                "sí",
+                "si ",
+                "dale",
+                "agregar",
+                "agregalo",
+                "ok",
+                "confirmo",
+                "quiero",
+            ]
+        ):
             sku = ctx.get("selected_product")
             ctx, item = add_to_cart(ctx, sku)
             ctx["selected_product"] = None  # Limpiar selección
@@ -1204,12 +1231,24 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             )
 
         # Detectar si el usuario confirma agregar el producto previamente seleccionado
-        if ctx.get("selected_product") and any(k in txt for k in ["sí", "si ", "dale", "agregar", "agregalo", "ok", "confirmo", "quiero"]):
+        if ctx.get("selected_product") and any(
+            k in txt
+            for k in [
+                "sí",
+                "si ",
+                "dale",
+                "agregar",
+                "agregalo",
+                "ok",
+                "confirmo",
+                "quiero",
+            ]
+        ):
             selected_sku = ctx.get("selected_product")
             # Extraer la talla del SKU (ej: AERO-M-VAR-S -> S)
             talla = selected_sku.split("-")[-1] if "-" in selected_sku else "M"
             item_base = CATALOGO["mascota"]["aeropet_variable"]
-            
+
             # Determinar precio según talla
             if talla == "S":
                 precio_final = item_base["precio_min"]
@@ -1217,7 +1256,7 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 precio_final = item_base["precio_max"]
             else:  # M
                 precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
-            
+
             # Agregar al carrito
             item_temp = {
                 "sku": selected_sku,
@@ -1225,12 +1264,14 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 "precio_clp": precio_final,
             }
             cart = ctx.get("cart", [])
-            cart.append({
-                "sku": item_temp["sku"],
-                "nombre": item_temp["nombre"],
-                "precio_clp": item_temp["precio_clp"],
-                "qty": 1,
-            })
+            cart.append(
+                {
+                    "sku": item_temp["sku"],
+                    "nombre": item_temp["nombre"],
+                    "precio_clp": item_temp["precio_clp"],
+                    "qty": 1,
+                }
+            )
             ctx["cart"] = cart
             ctx["selected_product"] = None  # Limpiar selección
             update_context(sess, ctx)
@@ -1681,28 +1722,28 @@ def handle_callback(
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n📦 Ideal para llevar la aerocámara a todos lados de forma compacta.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "prod_mascarilla":
         item = CATALOGO["humana"]["mascarilla"]
         update_context(sess, {"selected_product": "AERO-H-MASK"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n😷 Incluye mascarilla para mejor administración del medicamento.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "prod_adaptador":
         item = CATALOGO["humana"]["adaptador_circular"]
         update_context(sess, {"selected_product": "AERO-H-ADC"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n⭕ Compatible con inhaladores tipo Vannair. Adaptador circular para mejor ajuste.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "prod_recambio":
         item = CATALOGO["humana"]["recambio"]
         update_context(sess, {"selected_product": "AERO-H-REC"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n🔄 Perfecto si ya tienes el bolso y solo necesitas renovar la cámara.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     # Tallas para mascotas
     elif callback_data == "pet_talla_s":
         item_base = CATALOGO["mascota"]["aeropet_variable"]
@@ -1710,7 +1751,7 @@ def handle_callback(
         telegram_answer_callback(callback_id, "Talla S seleccionada")
         reply_msg = f"✅ {item_base['nombre']} - Talla S\n💰 Precio: {format_price(item_base['precio_min'])}\n🐕 Ideal para mascotas pequeñas (hasta 5 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "pet_talla_m":
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         precio_m = (item_base["precio_min"] + item_base["precio_max"]) // 2
@@ -1718,14 +1759,14 @@ def handle_callback(
         telegram_answer_callback(callback_id, "Talla M seleccionada")
         reply_msg = f"✅ {item_base['nombre']} - Talla M\n💰 Precio: {format_price(precio_m)}\n🐕 Ideal para mascotas medianas (hasta 7 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "pet_talla_l":
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         update_context(sess, {"selected_product": "AERO-M-VAR-L"})
         telegram_answer_callback(callback_id, "Talla L seleccionada")
         reply_msg = f"✅ {item_base['nombre']} - Talla L\n💰 Precio: {format_price(item_base['precio_max'])}\n🐕 Ideal para mascotas grandes (hasta 9 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
-    
+
     elif callback_data == "help_measure":
         telegram_answer_callback(callback_id, "Guía de medición")
         reply_msg = FAQ["talla_mascota"]
