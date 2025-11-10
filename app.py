@@ -331,15 +331,35 @@ def build_inline_keyboard(state: str | None, ctx: Optional[Dict] = None) -> dict
                     "callback_data": "prod_adaptador",
                 }
             ],
-            [{"text": "🔄 Aerocámara Recambio ($12.990)", "callback_data": "prod_recambio"}],
+            [
+                {
+                    "text": "🔄 Aerocámara Recambio ($12.990)",
+                    "callback_data": "prod_recambio",
+                }
+            ],
         ]
 
     # Botones de tallas para PET_DETAIL
     elif st == "PET_DETAIL":
         buttons = [
-            [{"text": "🐕 AeroPet Talla S - Pequeña ($20.990)", "callback_data": "pet_talla_s"}],
-            [{"text": "🐕 AeroPet Talla M - Mediana ($28.990)", "callback_data": "pet_talla_m"}],
-            [{"text": "🐕 AeroPet Talla L - Grande ($36.990)", "callback_data": "pet_talla_l"}],
+            [
+                {
+                    "text": "🐕 AeroPet Talla S - Pequeña ($20.990)",
+                    "callback_data": "pet_talla_s",
+                }
+            ],
+            [
+                {
+                    "text": "🐕 AeroPet Talla M - Mediana ($28.990)",
+                    "callback_data": "pet_talla_m",
+                }
+            ],
+            [
+                {
+                    "text": "🐕 AeroPet Talla L - Grande ($36.990)",
+                    "callback_data": "pet_talla_l",
+                }
+            ],
             [{"text": "📏 Ayuda para medir", "callback_data": "help_measure"}],
         ]
 
@@ -1524,6 +1544,24 @@ async def meta_webhook(request: Request):
     return JSONResponse({"status": "ok"})
 
 
+# Sistema de deduplicación de updates (para evitar procesar el mismo update dos veces)
+_processed_updates = set()
+_max_processed_updates = 1000  # Mantener solo los últimos 1000 update_ids
+
+def is_update_processed(update_id: int) -> bool:
+    """Verifica si un update ya fue procesado"""
+    if update_id in _processed_updates:
+        return True
+    _processed_updates.add(update_id)
+    # Limpiar el set si crece demasiado
+    if len(_processed_updates) > _max_processed_updates:
+        # Remover los primeros elementos (los más antiguos)
+        for _ in range(200):  # Remover 200 elementos
+            if _processed_updates:
+                _processed_updates.pop()
+    return False
+
+
 # ============= Canal: Telegram (webhook) =============
 @app.post("/telegram/webhook")
 async def telegram_webhook(
@@ -1543,7 +1581,14 @@ async def telegram_webhook(
         return JSONResponse({"ok": True})
 
     update = await request.json()
-    print(f"DEBUG: Webhook recibido - update keys: {update.keys()}")
+    update_id = update.get("update_id")
+    
+    # Verificar si ya procesamos este update
+    if update_id and is_update_processed(update_id):
+        print(f"DEBUG: Update {update_id} ya fue procesado, ignorando duplicado")
+        return JSONResponse({"ok": True})
+    
+    print(f"DEBUG: Webhook recibido - update_id={update_id}, keys: {update.keys()}")
 
     try:
         # Manejar callback_query (inline buttons)
@@ -1564,10 +1609,12 @@ async def telegram_webhook(
             )
 
             if reply_msg:
+                _sess = get_session("telegram", user_id)
                 telegram_send_message(
                     chat_id,
                     reply_msg,
-                    ctx=get_context(get_session("telegram", user_id)),
+                    state=_sess.state,
+                    ctx=get_context(_sess),
                     inline_keyboard=inline_kb,
                     reply_keyboard=reply_kb,
                 )
@@ -1794,6 +1841,13 @@ def telegram_get_updates(offset: int = 0):
 
 def process_telegram_update(update: Dict):
     """Procesa una actualización de Telegram"""
+    update_id = update.get("update_id")
+    
+    # Verificar si ya procesamos este update
+    if update_id and is_update_processed(update_id):
+        print(f"DEBUG: Update {update_id} ya fue procesado en polling, ignorando duplicado")
+        return
+    
     message = update.get("message") or update.get("edited_message")
     if message and "text" in message:
         chat_id = str(message["chat"]["id"])
