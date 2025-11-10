@@ -90,11 +90,11 @@ TELEGRAM_SECRET_TOKEN = os.getenv("TELEGRAM_SECRET_TOKEN", "")
 # OpenRouter (IA)
 OPENROUTER_API_KEY = os.getenv(
     "OPENROUTER_API_KEY",
-    "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",
+    "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",
 )
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://aeroprochile.cl")
-OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "Aerocamaras Chile")
+OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "aerobot")
 
 # ============= FastAPI =============
 app = FastAPI(title="Chatbot Aerocámaras (CLP, Chile)")
