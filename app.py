@@ -1743,8 +1743,16 @@ def telegram_edit_message(
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
     data = {"chat_id": chat_id, "message_id": message_id, "text": text}
-    if inline_keyboard:
+    
+    # Si inline_keyboard es None, pasamos un reply_markup vacío para ELIMINAR los botones
+    # Si inline_keyboard tiene valor, lo usamos
+    # Si inline_keyboard es un dict vacío {}, también lo pasamos
+    if inline_keyboard is not None:
         data["reply_markup"] = inline_keyboard
+    else:
+        # Para eliminar botones, debemos pasar un reply_markup con inline_keyboard vacío
+        data["reply_markup"] = {"inline_keyboard": []}
+    
     try:
         requests.post(url, json=data, timeout=10)
     except Exception as e:
