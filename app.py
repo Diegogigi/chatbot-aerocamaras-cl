@@ -89,9 +89,7 @@ TELEGRAM_SECRET_TOKEN = os.getenv("TELEGRAM_SECRET_TOKEN", "")
 
 # OpenRouter (IA)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = os.getenv(
-    "OPENROUTER_MODEL", "google/gemma-2-9b-it:free"
-)
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-r1:free")
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://aeroprochile.cl")
 OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "aerobot")
 
@@ -848,6 +846,76 @@ def persist_lead(
         s.close()
 
 
+# ============= Sistema de respuestas fallback (cuando IA falla) =============
+def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]) -> str:
+    """
+    Respuestas inteligentes predefinidas cuando la IA no está disponible.
+    """
+    user_msg = user_message.lower()
+    
+    # Estado START o QUALIFY - Inicio de conversación
+    if state in ["START", "QUALIFY"]:
+        if any(k in user_msg for k in ["hola", "buenos", "start", "hola"]):
+            return "¡Hola! 👋 Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?"
+        elif any(k in user_msg for k in ["humana", "persona", "adulto", "niño"]):
+            return f"¡Perfecto! 😊 Aquí tienes las opciones para personas:\n\n{list_options_human()}\n\n¿Cuál te gusta más?"
+        elif any(k in user_msg for k in ["mascota", "perro", "gato"]):
+            return f"¡Excelente! 🐾 Aquí están las opciones para mascotas:\n\n{list_options_pet()}\n\n¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande)."
+        elif any(k in user_msg for k in ["precio", "cuánto", "cuanto", "vale"]):
+            return f"¡Claro! 😊 Aquí están todos los modelos disponibles:\n\n{list_options_site()}\n\n¿Cuál te llama más la atención?"
+        else:
+            return "¿Es para una persona o para una mascota? 😊"
+    
+    # Estado HUMAN_DETAIL
+    elif state == "HUMAN_DETAIL":
+        if any(k in user_msg for k in ["precio", "cuánto", "cuanto"]):
+            return f"¡Claro! 😊 Aquí están los precios para personas:\n\n{list_options_human()}\n\n¿Te interesa alguno en particular?"
+        elif any(k in user_msg for k in ["material", "bpa"]):
+            return faq_materials()
+        elif any(k in user_msg for k in ["limpia", "lavar"]):
+            return faq_cleaning()
+        else:
+            return "¿Qué modelo prefieres? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. 😊"
+    
+    # Estado PET_DETAIL
+    elif state == "PET_DETAIL":
+        if any(k in user_msg for k in ["talla", "tamaño", "medir"]):
+            return FAQ["talla_mascota"]
+        elif any(k in user_msg for k in ["precio", "cuánto"]):
+            return f"¡Perfecto! 🐾 Aquí están los precios para mascotas:\n\n{list_options_pet()}\n\n¿Te interesa alguna talla en particular?"
+        else:
+            return "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir 😊"
+    
+    # Estado COLLECT_DATA
+    elif state == "COLLECT_DATA":
+        missing = []
+        if not context.get("name"):
+            missing.append("nombre")
+        if not context.get("city"):
+            missing.append("comuna o ciudad")
+        if not (context.get("phone") or context.get("email")):
+            missing.append("teléfono o email")
+        
+        if missing:
+            missing_str = ", ".join(missing)
+            return f"Casi terminamos 😊 Solo me faltan: {missing_str}. ¿Me los puedes compartir?"
+        return "Perfecto, ya tengo tus datos. Estoy procesando tu pedido..."
+    
+    # Estado CLOSE
+    elif state == "CLOSE":
+        if any(k in user_msg for k in ["envío", "despacho"]):
+            return shipping_text()
+        elif any(k in user_msg for k in ["garantía", "devolución"]):
+            return warranty_text()
+        elif any(k in user_msg for k in ["uso", "cómo usar", "como usar"]):
+            return FAQ["uso_web"]
+        else:
+            return "¿Tienes alguna duda sobre tu pedido? Estoy aquí para ayudarte 😊"
+    
+    # Fallback general
+    return "Disculpa, ¿podrías repetir tu pregunta? 😊"
+
+
 # ============= Generación de respuestas con IA (OpenRouter) =============
 def generate_ai_response(
     user_message: str,
@@ -973,8 +1041,8 @@ Responde de forma natural, como un vendedor chileno experto y amable."""
 
     except Exception as e:
         print(f"ERROR al generar respuesta con IA: {e}")
-        # Fallback a respuesta genérica
-        return "Disculpa, tuve un pequeño problema. ¿Puedes repetir tu pregunta? 😊"
+        # Fallback a respuesta inteligente según el estado
+        return get_fallback_response(user_message, state, context)
 
 
 # ============= Política de conversación (FSM) =============
