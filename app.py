@@ -847,12 +847,14 @@ def persist_lead(
 
 
 # ============= Sistema de respuestas fallback (cuando IA falla) =============
-def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]) -> str:
+def get_fallback_response(
+    user_message: str, state: str, context: Dict[str, Any]
+) -> str:
     """
     Respuestas inteligentes predefinidas cuando la IA no está disponible.
     """
     user_msg = user_message.lower()
-    
+
     # Estado START o QUALIFY - Inicio de conversación
     if state in ["START", "QUALIFY"]:
         if any(k in user_msg for k in ["hola", "buenos", "start", "hola"]):
@@ -865,7 +867,7 @@ def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]
             return f"¡Claro! 😊 Aquí están todos los modelos disponibles:\n\n{list_options_site()}\n\n¿Cuál te llama más la atención?"
         else:
             return "¿Es para una persona o para una mascota? 😊"
-    
+
     # Estado HUMAN_DETAIL
     elif state == "HUMAN_DETAIL":
         if any(k in user_msg for k in ["precio", "cuánto", "cuanto"]):
@@ -875,8 +877,8 @@ def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]
         elif any(k in user_msg for k in ["limpia", "lavar"]):
             return faq_cleaning()
         else:
-            return "¿Qué modelo prefieres? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. 😊"
-    
+            return f"¿Qué modelo prefieres? Aquí están las opciones:\n\n{list_options_human()}\n\n¿Cuál te gusta más? 😊"
+
     # Estado PET_DETAIL
     elif state == "PET_DETAIL":
         if any(k in user_msg for k in ["talla", "tamaño", "medir"]):
@@ -885,7 +887,7 @@ def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]
             return f"¡Perfecto! 🐾 Aquí están los precios para mascotas:\n\n{list_options_pet()}\n\n¿Te interesa alguna talla en particular?"
         else:
             return "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir 😊"
-    
+
     # Estado COLLECT_DATA
     elif state == "COLLECT_DATA":
         missing = []
@@ -895,12 +897,12 @@ def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]
             missing.append("comuna o ciudad")
         if not (context.get("phone") or context.get("email")):
             missing.append("teléfono o email")
-        
+
         if missing:
             missing_str = ", ".join(missing)
             return f"Casi terminamos 😊 Solo me faltan: {missing_str}. ¿Me los puedes compartir?"
         return "Perfecto, ya tengo tus datos. Estoy procesando tu pedido..."
-    
+
     # Estado CLOSE
     elif state == "CLOSE":
         if any(k in user_msg for k in ["envío", "despacho"]):
@@ -911,7 +913,7 @@ def get_fallback_response(user_message: str, state: str, context: Dict[str, Any]
             return FAQ["uso_web"]
         else:
             return "¿Tienes alguna duda sobre tu pedido? Estoy aquí para ayudarte 😊"
-    
+
     # Fallback general
     return "Disculpa, ¿podrías repetir tu pregunta? 😊"
 
