@@ -1768,11 +1768,11 @@ def handle_callback(
         item = CATALOGO["humana"]["bolso"]
         update_context(sess, {"selected_product": "AERO-H-BOL"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona tu producto:", None)
-        
+
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n📦 Ideal para llevar la aerocámara a todos lados de forma compacta.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
@@ -1780,11 +1780,11 @@ def handle_callback(
         item = CATALOGO["humana"]["mascarilla"]
         update_context(sess, {"selected_product": "AERO-H-MASK"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona tu producto:", None)
-        
+
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n😷 Incluye mascarilla para mejor administración del medicamento.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
@@ -1792,11 +1792,11 @@ def handle_callback(
         item = CATALOGO["humana"]["adaptador_circular"]
         update_context(sess, {"selected_product": "AERO-H-ADC"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona tu producto:", None)
-        
+
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n⭕ Compatible con inhaladores tipo Vannair. Adaptador circular para mejor ajuste.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
@@ -1804,11 +1804,11 @@ def handle_callback(
         item = CATALOGO["humana"]["recambio"]
         update_context(sess, {"selected_product": "AERO-H-REC"})
         telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona tu producto:", None)
-        
+
         reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n🔄 Perfecto si ya tienes el bolso y solo necesitas renovar la cámara.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
@@ -1817,12 +1817,12 @@ def handle_callback(
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         update_context(sess, {"selected_product": "AERO-M-VAR-S"})
         telegram_answer_callback(callback_id, "Talla S seleccionada")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona la talla:", None)
-        
-        reply_msg = f"✅ {item_base['nombre']} - Talla S\n💰 Precio: {format_price(item_base['precio_min'])}\n🐕 Ideal para mascotas pequeñas (hasta 5 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+
+        reply_msg = f"✅ {item_base['nombre']} - Talla S\n💰 Precio: {format_price(item_base['precio_min'])}\n🐕 Ideal para mascotas pequeñas (hasta 5 cm de diámetro)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
     elif callback_data == "pet_talla_m":
@@ -1830,33 +1830,33 @@ def handle_callback(
         precio_m = (item_base["precio_min"] + item_base["precio_max"]) // 2
         update_context(sess, {"selected_product": "AERO-M-VAR-M"})
         telegram_answer_callback(callback_id, "Talla M seleccionada")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona la talla:", None)
-        
-        reply_msg = f"✅ {item_base['nombre']} - Talla M\n💰 Precio: {format_price(precio_m)}\n🐕 Ideal para mascotas medianas (hasta 7 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+
+        reply_msg = f"✅ {item_base['nombre']} - Talla M\n💰 Precio: {format_price(precio_m)}\n🐕 Ideal para mascotas medianas (hasta 7 cm de diámetro)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
     elif callback_data == "pet_talla_l":
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         update_context(sess, {"selected_product": "AERO-M-VAR-L"})
         telegram_answer_callback(callback_id, "Talla L seleccionada")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona la talla:", None)
-        
-        reply_msg = f"✅ {item_base['nombre']} - Talla L\n💰 Precio: {format_price(item_base['precio_max'])}\n🐕 Ideal para mascotas grandes (hasta 9 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+
+        reply_msg = f"✅ {item_base['nombre']} - Talla L\n💰 Precio: {format_price(item_base['precio_max'])}\n🐕 Ideal para mascotas grandes (hasta 9 cm de diámetro)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
         return (reply_msg, None, None)
 
     elif callback_data == "help_measure":
         telegram_answer_callback(callback_id, "Guía de medición")
-        
+
         # Editar el mensaje original para remover los botones
         if channel == "telegram":
             telegram_edit_message(chat_id, message_id, "Selecciona la talla:", None)
-        
+
         reply_msg = FAQ["talla_mascota"]
         return (reply_msg, None, None)
 
