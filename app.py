@@ -307,8 +307,30 @@ def build_keyboard(state: str | None) -> dict | None:
 # ============= Telegram Inline Keyboard =============
 def build_inline_keyboard(state: str | None, ctx: Optional[Dict] = None) -> dict | None:
     """Devuelve un inline_keyboard según el estado."""
-    # Simplificado: sin botones inline
-    return None
+    st = (state or "").upper()
+    buttons = []
+    
+    # Botones de productos para HUMAN_DETAIL
+    if st == "HUMAN_DETAIL":
+        buttons = [
+            [{"text": "🎒 Bolso transportador ($21.990)", "callback_data": "prod_bolso"}],
+            [{"text": "😷 Con mascarilla ($25.990)", "callback_data": "prod_mascarilla"}],
+            [{"text": "⭕ Adaptador circular ($21.990)", "callback_data": "prod_adaptador"}],
+            [{"text": "🔄 Recambio ($12.990)", "callback_data": "prod_recambio"}],
+        ]
+    
+    # Botones de tallas para PET_DETAIL
+    elif st == "PET_DETAIL":
+        buttons = [
+            [{"text": "🐕 Talla S ($20.990)", "callback_data": "pet_talla_s"}],
+            [{"text": "🐕 Talla M ($28.990)", "callback_data": "pet_talla_m"}],
+            [{"text": "🐕 Talla L ($36.990)", "callback_data": "pet_talla_l"}],
+            [{"text": "📏 Ayuda para medir", "callback_data": "help_measure"}],
+        ]
+    
+    if not buttons:
+        return None
+    return {"inline_keyboard": buttons}
 
 
 # ============= NLU simple (reglas) =============
@@ -1601,15 +1623,61 @@ def handle_callback(
     sess = get_session(channel, user_id)
     ctx = get_context(sess)
 
-    # Solo manejar el callback de "hablar con asesor"
-    # Los demás callbacks (finalize_order, add_unit, see_prices) ya no se usan
-    # porque solo mostramos el botón "Hablar con asesor"
-    if callback_data == "handoff":
-        save_session(sess, state="COLLECT_DATA")
-        reply_msg = style_msg(
-            "Perfecto, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y la comuna donde estás, así te contactan rápido."
-        )
-        telegram_answer_callback(callback_id, "Te contactaremos pronto")
+    # Productos para humanos
+    if callback_data == "prod_bolso":
+        item = CATALOGO["humana"]["bolso"]
+        update_context(sess, {"selected_product": "AERO-H-BOL"})
+        telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
+        reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n📦 Ideal para llevar la aerocámara a todos lados de forma compacta.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "prod_mascarilla":
+        item = CATALOGO["humana"]["mascarilla"]
+        update_context(sess, {"selected_product": "AERO-H-MASK"})
+        telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
+        reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n😷 Incluye mascarilla para mejor administración del medicamento.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "prod_adaptador":
+        item = CATALOGO["humana"]["adaptador_circular"]
+        update_context(sess, {"selected_product": "AERO-H-ADC"})
+        telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
+        reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n⭕ Compatible con inhaladores tipo Vannair. Adaptador circular para mejor ajuste.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "prod_recambio":
+        item = CATALOGO["humana"]["recambio"]
+        update_context(sess, {"selected_product": "AERO-H-REC"})
+        telegram_answer_callback(callback_id, f"Seleccionado: {item['nombre']}")
+        reply_msg = f"✅ {item['nombre']}\n💰 Precio: {format_price(item['precio_clp'])}\n\n🔄 Perfecto si ya tienes el bolso y solo necesitas renovar la cámara.\n\n{item['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    # Tallas para mascotas
+    elif callback_data == "pet_talla_s":
+        item_base = CATALOGO["mascota"]["aeropet_variable"]
+        update_context(sess, {"selected_product": "AERO-M-VAR-S"})
+        telegram_answer_callback(callback_id, "Talla S seleccionada")
+        reply_msg = f"✅ {item_base['nombre']} - Talla S\n💰 Precio: {format_price(item_base['precio_min'])}\n🐕 Ideal para mascotas pequeñas (hasta 5 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "pet_talla_m":
+        item_base = CATALOGO["mascota"]["aeropet_variable"]
+        precio_m = (item_base["precio_min"] + item_base["precio_max"]) // 2
+        update_context(sess, {"selected_product": "AERO-M-VAR-M"})
+        telegram_answer_callback(callback_id, "Talla M seleccionada")
+        reply_msg = f"✅ {item_base['nombre']} - Talla M\n💰 Precio: {format_price(precio_m)}\n🐕 Ideal para mascotas medianas (hasta 7 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "pet_talla_l":
+        item_base = CATALOGO["mascota"]["aeropet_variable"]
+        update_context(sess, {"selected_product": "AERO-M-VAR-L"})
+        telegram_answer_callback(callback_id, "Talla L seleccionada")
+        reply_msg = f"✅ {item_base['nombre']} - Talla L\n💰 Precio: {format_price(item_base['precio_max'])}\n🐕 Ideal para mascotas grandes (hasta 9 cm de hocico)\n\n{item_base['url']}\n\n¿Quieres agregarlo al carrito? 🛒\nEscribe 'sí' para agregar, o pregúntame lo que necesites."
+        return (reply_msg, None, None)
+    
+    elif callback_data == "help_measure":
+        telegram_answer_callback(callback_id, "Guía de medición")
+        reply_msg = FAQ["talla_mascota"]
         return (reply_msg, None, None)
 
     telegram_answer_callback(callback_id, "Acción procesada")
