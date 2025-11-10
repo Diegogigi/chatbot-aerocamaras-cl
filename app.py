@@ -1139,6 +1139,19 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 context=ctx,
             )
 
+        # Detectar si el usuario confirma agregar el producto previamente seleccionado
+        if ctx.get("selected_product") and any(k in txt for k in ["sí", "si ", "dale", "agregar", "agregalo", "ok", "confirmo", "quiero"]):
+            sku = ctx.get("selected_product")
+            ctx, item = add_to_cart(ctx, sku)
+            ctx["selected_product"] = None  # Limpiar selección
+            update_context(sess, ctx)
+            save_session(sess, state="COLLECT_DATA")
+            return generate_ai_response(
+                user_message=f"Producto {item['nombre']} agregado al carrito. Ahora necesito recolectar datos del cliente: nombre, ciudad/comuna, teléfono o email",
+                state="COLLECT_DATA",
+                context=ctx,
+            )
+
         # Detectar productos específicos y agregar al carrito
         product_added = False
         if any(k in txt for k in ["bolso", "transportador"]):
@@ -1187,6 +1200,44 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             return generate_ai_response(
                 user_message="El cliente quiere volver atrás",
                 state="QUALIFY",
+                context=ctx,
+            )
+
+        # Detectar si el usuario confirma agregar el producto previamente seleccionado
+        if ctx.get("selected_product") and any(k in txt for k in ["sí", "si ", "dale", "agregar", "agregalo", "ok", "confirmo", "quiero"]):
+            selected_sku = ctx.get("selected_product")
+            # Extraer la talla del SKU (ej: AERO-M-VAR-S -> S)
+            talla = selected_sku.split("-")[-1] if "-" in selected_sku else "M"
+            item_base = CATALOGO["mascota"]["aeropet_variable"]
+            
+            # Determinar precio según talla
+            if talla == "S":
+                precio_final = item_base["precio_min"]
+            elif talla == "L":
+                precio_final = item_base["precio_max"]
+            else:  # M
+                precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
+            
+            # Agregar al carrito
+            item_temp = {
+                "sku": selected_sku,
+                "nombre": f"{item_base['nombre']} - Talla {talla}",
+                "precio_clp": precio_final,
+            }
+            cart = ctx.get("cart", [])
+            cart.append({
+                "sku": item_temp["sku"],
+                "nombre": item_temp["nombre"],
+                "precio_clp": item_temp["precio_clp"],
+                "qty": 1,
+            })
+            ctx["cart"] = cart
+            ctx["selected_product"] = None  # Limpiar selección
+            update_context(sess, ctx)
+            save_session(sess, state="COLLECT_DATA")
+            return generate_ai_response(
+                user_message=f"Producto {item_temp['nombre']} agregado al carrito. Ahora necesito recolectar datos del cliente: nombre, ciudad/comuna, teléfono o email",
+                state="COLLECT_DATA",
                 context=ctx,
             )
 
