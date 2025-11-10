@@ -92,7 +92,7 @@ OPENROUTER_API_KEY = os.getenv(
     "OPENROUTER_API_KEY",
     "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",
 )
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemma-2-9b-it:free")
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://aeroprochile.cl")
 OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "aerobot")
 
