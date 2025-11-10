@@ -17,6 +17,7 @@ python-dotenv==1.0.1
 pydantic==2.9.2
 python-telegram-bot==21.6
 SQLAlchemy==2.0.36
+openai==1.54.5
 
 Variables de entorno (.env):
 ----------------------------
@@ -30,6 +31,12 @@ META_IG_BUSINESS_ID=xxxxxxxxxxxxxxx      # opcional si respondes a IG desde Grap
 TELEGRAM_BOT_TOKEN=xxxxxxxxx:YYYYYYYYYYYYYYYYYYYY
 TELEGRAM_WEBHOOK_URL=https://tu-dominio.com/telegram/webhook
 TELEGRAM_SECRET_TOKEN=cualquier_cadena_larga_y_unica
+
+# OpenRouter (IA)
+OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
+OPENROUTER_SITE_URL=https://aeroprochile.cl
+OPENROUTER_SITE_NAME=Aerocamaras Chile
 
 # App
 APP_BASE_URL=https://tu-dominio.com
@@ -65,6 +72,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+from openai import OpenAI
+
 # ============= Carga de configuración =============
 load_dotenv()
 
@@ -78,8 +87,23 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL", "")
 TELEGRAM_SECRET_TOKEN = os.getenv("TELEGRAM_SECRET_TOKEN", "")
 
+# OpenRouter (IA)
+OPENROUTER_API_KEY = os.getenv(
+    "OPENROUTER_API_KEY",
+    "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",
+)
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "https://aeroprochile.cl")
+OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "Aerocamaras Chile")
+
 # ============= FastAPI =============
 app = FastAPI(title="Chatbot Aerocámaras (CLP, Chile)")
+
+# ============= Cliente OpenRouter (IA) =============
+openrouter_client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
 
 # ============= Base de datos (SQLite) =============
 engine = create_engine(
@@ -279,35 +303,15 @@ def get_variant(key: str, **kwargs) -> str:
 # ============= Telegram ReplyKeyboard =============
 def build_keyboard(state: str | None) -> dict | None:
     """Devuelve un reply_markup con teclado rápido según el estado."""
-    st = (state or "").upper()
-
-    # Solo mostrar botón "Hablar con asesor" en todos los estados excepto DONE
-    if st == "DONE":
-        # En DONE removemos el teclado
-        return {"remove_keyboard": True}
-
-    # En todos los demás estados, solo mostrar "Hablar con asesor"
-    rows = [["Hablar con asesor"]]
-
-    return {
-        "keyboard": [[{"text": b} for b in r] for r in rows],
-        "resize_keyboard": True,
-        "one_time_keyboard": False,
-    }
+    # Simplificado: sin botones de sugerencias
+    return None
 
 
 # ============= Telegram Inline Keyboard =============
 def build_inline_keyboard(state: str | None, ctx: Optional[Dict] = None) -> dict | None:
     """Devuelve un inline_keyboard según el estado."""
-    st = (state or "").upper()
-    buttons = []
-
-    # Solo mostrar botón "Hablar con asesor" en todos los estados
-    buttons.append([{"text": "Hablar con asesor", "callback_data": "handoff"}])
-
-    if not buttons:
-        return None
-    return {"inline_keyboard": buttons}
+    # Simplificado: sin botones inline
+    return None
 
 
 # ============= NLU simple (reglas) =============
@@ -845,6 +849,135 @@ def persist_lead(
         s.close()
 
 
+# ============= Generación de respuestas con IA (OpenRouter) =============
+def generate_ai_response(
+    user_message: str,
+    state: str,
+    context: Dict[str, Any],
+    conversation_history: Optional[List[Dict]] = None,
+) -> str:
+    """
+    Genera una respuesta usando el modelo de IA con contexto del negocio.
+    """
+    try:
+        # Construir el prompt del sistema con información del negocio
+        system_prompt = f"""Eres un asistente de ventas amigable y profesional de Aerocámaras Chile (aeroprochile.cl).
+
+**Tu misión:** Ayudar a los clientes a elegir la aerocámara perfecta y completar su compra.
+
+**INFORMACIÓN DEL NEGOCIO:**
+
+📦 **CATÁLOGO DE PRODUCTOS:**
+
+**Para personas:**
+1. Aerocámara Plegable + bolso transportador - $21.990 CLP
+   SKU: AERO-H-BOL
+   URL: https://aeroprochile.cl/producto/aerocamara-plegable-sin-mascarilla/
+
+2. Aerocámara plegable con mascarilla - $25.990 CLP
+   SKU: AERO-H-MASK
+   URL: https://aeroprochile.cl/producto/aerocamara-plegable-con-mascarilla/
+
+3. Aerocámara plegable con adaptador circular - $21.990 CLP
+   SKU: AERO-H-ADC
+   URL: https://aeroprochile.cl/producto/aerocamara-plegable-con-adaptador-circular/
+   (Compatible con Vannair)
+
+4. Aerocámara plegable para recambio - $12.990 CLP
+   SKU: AERO-H-REC
+   URL: https://aeroprochile.cl/producto/aerocamara-plegable-para-recambio-envio-gratis-compras-superiores-30-000/
+
+**Para mascotas:**
+- Aerocámara para mascotas (Aeropet)
+  Precios según talla:
+  • Talla S (hasta 5 cm diámetro): $20.990 CLP
+  • Talla M (hasta 7 cm diámetro): $28.990 CLP
+  • Talla L (hasta 9 cm diámetro): $36.990 CLP
+  SKU: AERO-M-VAR
+  URL: https://aeroprochile.cl/producto/aerocamara-de-mascota-envio-gratis/
+
+🚚 **ENVÍOS:**
+- GRATIS a todo Chile
+- RM: llegada al día siguiente
+- Otras regiones: 2 a 5 días
+
+📞 **CONTACTO:**
+- Teléfono: +569 9837 4924
+- Email: comunicaciones@aeroprochile.cl
+- Horario: Lunes a Sábado de 9:00 a 21:00
+
+🏪 **SUCURSALES:**
+- Las Condes (2 sucursales)
+- Los Álamos, Región del Biobío
+- También en Mercado Libre y Mercado Público
+
+✅ **GARANTÍA:**
+- 6 meses por cualquier falla
+- Cambios y devoluciones según Ley Pro-Consumidor
+
+🧼 **MATERIALES:**
+- Grado médico, libres de BPA
+- Válvula sensible que se activa automáticamente
+
+💳 **FACTURACIÓN:**
+- Emitimos boleta o factura
+- Para factura necesitamos RUT o razón social
+
+**TU ESTILO DE COMUNICACIÓN:**
+- Usa emojis con moderación 😊
+- Sé amable, cercano y profesional
+- Respuestas concisas pero completas
+- Haz preguntas para entender mejor las necesidades
+- Siempre menciona precios en formato chileno (ej: $21.990)
+- Ofrece links a productos cuando sea relevante
+
+**ESTADO ACTUAL DE LA CONVERSACIÓN:**
+Estado: {state}
+Familia elegida: {context.get('family', 'no definida')}
+Carrito: {len(context.get('cart', []))} productos
+Datos del cliente: {'completos' if all([context.get('name'), context.get('city'), context.get('phone') or context.get('email')]) else 'incompletos'}
+
+**INSTRUCCIONES:**
+- Si preguntan por productos, menciona opciones y precios
+- Si preguntan por envío, menciona que es GRATIS y los tiempos
+- Si quieren comprar, pregunta si es para persona o mascota primero
+- Si es para mascota, pregunta la talla (S/M/L)
+- Para completar compra necesitas: nombre, ciudad/comuna, teléfono o email
+- Sé proactivo pero no agresivo en la venta
+
+Responde de forma natural, como un vendedor chileno experto y amable."""
+
+        # Preparar los mensajes para el modelo
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # Agregar historial si existe
+        if conversation_history:
+            messages.extend(conversation_history[-5:])  # Últimos 5 mensajes
+
+        # Agregar el mensaje actual del usuario
+        messages.append({"role": "user", "content": user_message})
+
+        # Llamar al modelo
+        completion = openrouter_client.chat.completions.create(
+            extra_headers={
+                "HTTP-Referer": OPENROUTER_SITE_URL,
+                "X-Title": OPENROUTER_SITE_NAME,
+            },
+            model=OPENROUTER_MODEL,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500,
+        )
+
+        response = completion.choices[0].message.content
+        return response.strip()
+
+    except Exception as e:
+        print(f"ERROR al generar respuesta con IA: {e}")
+        # Fallback a respuesta genérica
+        return "Disculpa, tuve un pequeño problema. ¿Puedes repetir tu pregunta? 😊"
+
+
 # ============= Política de conversación (FSM) =============
 def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
     sess = get_session(channel, user_id)
@@ -884,226 +1017,94 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
     if sess.state == "START":
         update_context(sess, {"cart": []})
         save_session(sess, state="QUALIFY")
-        # Saludo completo y coherente en el primer contacto
-        # Las variantes de greet ya incluyen el saludo completo
-        greet_msg = get_variant("greet")
-        if not greet_msg:
-            # Si no hay variante, usar saludo por defecto
-            greet_msg = (
-                asis_prefix()
-                + "Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?"
-            )
-        # Las variantes ya tienen saludo completo, no agregar prefijo adicional
-        return greet_msg
+        # Usar IA para generar el saludo inicial
+        return generate_ai_response(user_message=user_text, state="START", context=ctx)
 
     if sess.state == "QUALIFY":
-        # Si el usuario saluda, responder con saludo apropiado
-        if intent == "greet":
-            return style_msg(
-                "¡Hola! 👋 Me da mucho gusto ayudarte. ¿Buscas una aerocámara para una persona o para una mascota?"
-            )
-
-        if intent == "handoff":
-            return style_msg(
-                "Claro, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y te contactan a la brevedad."
-            )
-
-        # FAQ en QUALIFY
-        if intent == "faq_materials":
-            return style_msg(faq_materials())
-        if intent == "faq_cleaning":
-            return style_msg(faq_cleaning())
-        if intent == "faq_compatibility":
-            return style_msg(faq_compatibility())
-        if intent == "faq_stock":
-            return style_msg(faq_stock())
-        if intent == "faq_documents":
-            return style_msg(faq_documents())
-        if intent == "faq_contacto":
-            return style_msg(FAQ["contacto"])
-        if intent == "faq_sucursal":
-            return style_msg(FAQ["sucursales"])
-        if intent == "faq_uso":
-            return style_msg(FAQ["uso_web"])
-        if intent == "faq_mascarilla_sin":
-            return style_msg(FAQ["mascarilla_sin"])
-        if intent == "faq_edad":
-            return style_msg(FAQ["edad_uso"])
-        if intent == "faq_lavado_detalle":
-            return style_msg(FAQ["lavado"])
-        if intent == "faq_talla_mascota":
-            return style_msg(FAQ["talla_mascota"])
-        if intent == "faq_vannair":
-            return style_msg(FAQ["vannair"])
+        # Detectar si quiere productos para humano o mascota para cambiar estado
+        txt = user_text.lower()
         if intent in ["want_human", "want_pet", "sizing"]:
-            txt = user_text.lower()
             if any(k in txt for k in ["humana", "persona", "adulto", "pediá"]):
                 update_context(sess, {"family": "humana"})
                 save_session(sess, state="HUMAN_DETAIL")
-                return style_msg(
-                    f"¡Perfecto! 😊 Aquí tienes las opciones para personas:\n\n{list_options_human()}\n\n¿Cuál te gusta más? Puedo ayudarte a elegir si tienes dudas."
-                )
-            if any(k in txt for k in ["mascota", "perro", "gato"]):
+            elif any(k in txt for k in ["mascota", "perro", "gato"]):
                 update_context(sess, {"family": "mascota"})
                 save_session(sess, state="PET_DETAIL")
-                return style_msg(
-                    f"¡Excelente! 🐾 Aquí están las opciones para mascotas:\n\n{list_options_pet()}\n\n¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir 😊"
-                )
-            return style_msg("Ok, ¿es para una persona o para una mascota? 😊")
 
-        if intent == "ask_price":
-            return style_msg(
-                f"¡Claro! 😊 Aquí están todos los modelos disponibles:\n\n{list_options_site()}\n\n¿Cuál te llama más la atención? Puedo ayudarte a decidir."
-            )
-        if intent == "buy":
-            save_session(sess, state="QUALIFY")
-            return style_msg(
-                "¡Genial que quieras comprar! 😊 Primero dime, ¿es para una persona o para una mascota? Así te muestro las opciones perfectas."
-            )
-
-        return style_msg(
-            get_variant("transition_qualify") or "Ok, ¿es para persona o mascota? 😊"
+        # Usar IA para responder (incluye FAQ, precios, info general)
+        return generate_ai_response(
+            user_message=user_text, state=sess.state, context=ctx
         )
 
     if sess.state == "HUMAN_DETAIL":
         txt = user_text.lower()
 
-        # FAQ
-        if intent == "faq_materials":
-            return style_msg(faq_materials())
-        if intent == "faq_cleaning":
-            return style_msg(faq_cleaning())
-        if intent == "faq_compatibility":
-            return style_msg(faq_compatibility())
-        if intent == "faq_stock":
-            return style_msg(faq_stock())
-        if intent == "faq_documents":
-            return style_msg(faq_documents())
-        if intent == "faq_contacto":
-            return style_msg(FAQ["contacto"])
-        if intent == "faq_sucursal":
-            return style_msg(FAQ["sucursales"])
-        if intent == "faq_uso":
-            return style_msg(FAQ["uso_web"])
-        if intent == "ask_price":
-            return style_msg(
-                f"¡Claro! 😊 Aquí están los precios para personas:\n\n{list_options_human()}\n\n¿Te interesa alguno en particular?"
-            )
+        # Volver a QUALIFY si pide volver
         if "volver" in txt:
             save_session(sess, state="QUALIFY")
-            return style_msg(
-                get_variant("transition_qualify")
-                or "Ok, ¿es para persona o mascota? 😊"
+            return generate_ai_response(
+                user_message="El cliente quiere volver atrás",
+                state="QUALIFY",
+                context=ctx,
             )
 
-        # Detectar productos específicos del nuevo catálogo
+        # Detectar productos específicos y agregar al carrito
+        product_added = False
         if any(k in txt for k in ["bolso", "transportador"]):
             sku = CATALOGO["humana"]["bolso"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
-            return style_msg(
-                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
-                f"{summarize_order(ctx)}\n\n"
-                "Para completar tu pedido, necesito:\n"
-                "• Tu nombre\n"
-                "• Comuna o ciudad\n"
-                "• Teléfono o email\n\n"
-                "¿Me los puedes compartir? 😊"
-            )
-        if "mascarilla" in txt:
+            product_added = True
+        elif "mascarilla" in txt:
             sku = CATALOGO["humana"]["mascarilla"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
-            return style_msg(
-                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
-                f"{summarize_order(ctx)}\n\n"
-                "Para completar tu pedido, necesito:\n"
-                "• Tu nombre\n"
-                "• Comuna o ciudad\n"
-                "• Teléfono o email\n\n"
-                "¿Me los puedes compartir? 😊"
-            )
-        if any(k in txt for k in ["adaptador", "circular"]):
+            product_added = True
+        elif any(k in txt for k in ["adaptador", "circular"]):
             sku = CATALOGO["humana"]["adaptador_circular"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
-            return style_msg(
-                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
-                f"{summarize_order(ctx)}\n\n"
-                "Para completar tu pedido, necesito:\n"
-                "• Tu nombre\n"
-                "• Comuna o ciudad\n"
-                "• Teléfono o email\n\n"
-                "¿Me los puedes compartir? 😊"
-            )
-        if "recambio" in txt:
+            product_added = True
+        elif "recambio" in txt:
             sku = CATALOGO["humana"]["recambio"]["sku"]
             ctx, item = add_to_cart(ctx, sku)
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
-            return style_msg(
-                f"¡Perfecto! ✓ Agregué {item['nombre']} ({format_price(item['precio_clp'])})\n\n"
-                f"{summarize_order(ctx)}\n\n"
-                "Para completar tu pedido, necesito:\n"
-                "• Tu nombre\n"
-                "• Comuna o ciudad\n"
-                "• Teléfono o email\n\n"
-                "¿Me los puedes compartir? 😊"
+            product_added = True
+
+        if product_added:
+            return generate_ai_response(
+                user_message=f"Producto agregado al carrito. Ahora necesito recolectar datos del cliente: nombre, ciudad/comuna, teléfono o email",
+                state="COLLECT_DATA",
+                context=ctx,
             )
-        if intent == "sizing":
-            return style_msg(
-                "¿Qué modelo te gusta más? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te convence? 😊"
-            )
-        return style_msg(
-            "¿Qué modelo prefieres? Tenemos: Bolso transportador, Mascarilla, Adaptador circular o Recambio. ¿Cuál te parece mejor? 😊"
+
+        # Si no agregó producto, usar IA para responder
+        return generate_ai_response(
+            user_message=user_text, state=sess.state, context=ctx
         )
 
     if sess.state == "PET_DETAIL":
         txt = user_text.lower()
 
-        # FAQ
-        if intent == "faq_materials":
-            return style_msg(faq_materials())
-        if intent == "faq_cleaning":
-            return style_msg(faq_cleaning())
-        if intent == "faq_compatibility":
-            return style_msg(faq_compatibility())
-        if intent == "faq_stock":
-            return style_msg(faq_stock())
-        if intent == "faq_documents":
-            return style_msg(faq_documents())
-        if intent == "faq_contacto":
-            return style_msg(FAQ["contacto"])
-        if intent == "faq_sucursal":
-            return style_msg(FAQ["sucursales"])
-        if intent == "faq_uso":
-            return style_msg(FAQ["uso_web"])
-        if intent == "ask_price":
-            return style_msg(
-                f"¡Perfecto! 🐾 Aquí están los precios para mascotas:\n\n{list_options_pet()}\n\n¿Te interesa alguna talla en particular?"
-            )
-        # Manejar cuando el usuario pide ayuda para medir (prioridad alta)
-        if intent == "help_measure" or intent == "faq_talla_mascota":
-            return style_msg(FAQ["talla_mascota"])
+        # Volver a QUALIFY si pide volver
         if "volver" in txt:
             save_session(sess, state="QUALIFY")
-            return style_msg(
-                get_variant("transition_qualify")
-                or "Ok, ¿es para persona o mascota? 😊"
+            return generate_ai_response(
+                user_message="El cliente quiere volver atrás",
+                state="QUALIFY",
+                context=ctx,
             )
 
-        # Detectar tallas para aeropet (precio variable)
-        # IMPORTANTE: Solo detectar tallas si NO es una petición de ayuda para medir
-        # Mapeo aproximado: S = precio_min, M = precio medio, L = precio_max
+        # Detectar tallas para aeropet y agregar al carrito
         item_base = CATALOGO["mascota"]["aeropet_variable"]
         precio_final = None
         talla_detectada = None
 
         # Solo detectar tallas si NO es una petición de ayuda para medir
-        # Verificar que no contenga palabras clave de ayuda para medir
         help_keywords = [
             "ayúdame",
             "ayuda",
@@ -1125,18 +1126,13 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
                 and "medir" not in txt
             ):
                 talla_detectada = "M"
-                # Precio medio entre min y max
                 precio_final = (item_base["precio_min"] + item_base["precio_max"]) // 2
             elif any(k in txt for k in ["talla l", " l", "gran", "grande"]):
                 talla_detectada = "L"
                 precio_final = item_base["precio_max"]
-            else:
-                talla_detectada = None
-        else:
-            talla_detectada = None
 
         if talla_detectada and precio_final:
-            # Crear un item temporal con el precio específico de la talla
+            # Agregar producto con talla específica al carrito
             item_temp = {
                 "sku": f"{item_base['sku']}-{talla_detectada}",
                 "nombre": f"{item_base['nombre']} - Talla {talla_detectada}",
@@ -1154,46 +1150,23 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             ctx["cart"] = cart
             update_context(sess, ctx)
             save_session(sess, state="COLLECT_DATA")
-            return style_msg(
-                f"¡Excelente! ✓ Agregué {item_temp['nombre']} ({format_price(item_temp['precio_clp'])})\n\n"
-                f"{summarize_order(ctx)}\n\n"
-                "Para completar tu pedido, necesito:\n"
-                "• Nombre del responsable\n"
-                "• Comuna o ciudad\n"
-                "• Teléfono o email\n\n"
-                "¿Me los puedes compartir? 😊"
+            return generate_ai_response(
+                user_message=f"Producto agregado al carrito (Talla {talla_detectada}). Ahora necesito recolectar datos del cliente: nombre, ciudad/comuna, teléfono o email",
+                state="COLLECT_DATA",
+                context=ctx,
             )
-        if intent == "sizing":
-            return style_msg(
-                "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si no estás seguro, te ayudo a medir el hocico 😊"
-            )
-        return style_msg(
-            "¿Qué talla necesitas? S (pequeña), M (mediana) o L (grande). Si tienes dudas, te ayudo a elegir la correcta 😊"
+
+        # Si no agregó producto, usar IA para responder
+        return generate_ai_response(
+            user_message=user_text, state=sess.state, context=ctx
         )
 
     if sess.state == "COLLECT_DATA":
-        if intent == "handoff":
-            return style_msg(
-                "Perfecto, te conecto con uno de nuestros asesores 😊 Déjame tu teléfono o email y la comuna donde estás, así te contactan rápido."
+        # Si es FAQ o handoff, usar IA para responder
+        if intent.startswith("faq_") or intent == "handoff":
+            return generate_ai_response(
+                user_message=user_text, state=sess.state, context=ctx
             )
-
-        # Manejar FAQ en COLLECT_DATA también
-        if intent == "faq_materials":
-            return style_msg(faq_materials())
-        if intent == "faq_cleaning":
-            return style_msg(faq_cleaning())
-        if intent == "faq_compatibility":
-            return style_msg(faq_compatibility())
-        if intent == "faq_stock":
-            return style_msg(faq_stock())
-        if intent == "faq_documents":
-            return style_msg(faq_documents())
-        if intent == "faq_contacto":
-            return style_msg(FAQ["contacto"])
-        if intent == "faq_sucursal":
-            return style_msg(FAQ["sucursales"])
-        if intent == "faq_uso":
-            return style_msg(FAQ["uso_web"])
 
         name = ctx.get("name")
         city = ctx.get("city")
@@ -1203,16 +1176,12 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
         t = user_text.strip()
 
         # Detección mejorada de datos
-        # Email: @ y punto
         if "@" in t and "." in t:
             email = t
-        # Comuna: usar detección mejorada
         elif detect_city(t)[0]:
             detected_city, zone = detect_city(t)
             city = detected_city
-            # Actualizar context con zona si es útil
             update_context(sess, {"shipping_zone": zone})
-        # Teléfono: ≥ 8 dígitos
         elif (
             any(
                 c.isdigit()
@@ -1221,7 +1190,6 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
             and len(t.replace("+", "").replace("-", "").replace(" ", "")) >= 8
         ):
             phone = t
-        # Nombre: al menos 3 caracteres, una palabra
         else:
             if len(t.split()) >= 1 and len(t) >= 3:
                 name = t if not name else name
@@ -1232,21 +1200,21 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
 
         missing = []
         if not name:
-            missing.append("NOMBRE")
+            missing.append("nombre")
         if not city:
-            missing.append("COMUNA/CIUDAD")
+            missing.append("comuna o ciudad")
         if not (phone or email):
-            missing.append("TELÉFONO o EMAIL")
+            missing.append("teléfono o email")
 
         if missing:
             missing_str = ", ".join(missing)
-            reply = get_variant("missing_data", missing=missing_str)
-            if not reply:
-                reply = style_msg(
-                    f"Casi terminamos 😊 Solo me faltan: {missing_str}. ¿Me los puedes compartir?"
-                )
-            return reply
+            return generate_ai_response(
+                user_message=f"Falta recolectar: {missing_str}",
+                state=sess.state,
+                context=ctx,
+            )
 
+        # Datos completos, finalizar pedido
         persist_lead(
             channel,
             user_id,
@@ -1260,211 +1228,28 @@ def next_message_logic(channel: str, user_id: str, user_text: str) -> str:
 
         save_session(sess, state="CLOSE")
 
-        # Información de envío mejorada si hay zona
+        # Generar resumen final con IA
         zone = ctx.get("shipping_zone")
-        shipping_msg = shipping_info_by_city(city, zone) if zone else shipping_text()
+        shipping_info = (
+            shipping_info_by_city(city, zone)
+            if zone
+            else "Envío GRATIS - 1 día en RM, 2-5 días en regiones"
+        )
 
-        return style_msg(
-            f"¡Excelente! Tu pedido está casi listo 🎉\n\n"
-            f"{summarize_order(get_context(sess))}\n\n"
-            f"📋 Tus datos:\n{name} — {city} — {phone or email}\n\n"
-            f"{shipping_msg}\n\n"
-            f"{warranty_text()}\n\n"
-            f"💳 Link de pago: {pay_link}\n\n"
-            "Si necesitas algo más o tienes alguna duda, solo dime 😊"
+        return generate_ai_response(
+            user_message=f"Pedido completado! Resumen: {summarize_order(get_context(sess))}. Datos: {name}, {city}, {phone or email}. Envío: {shipping_info}. Link de pago: {pay_link}",
+            state="CLOSE",
+            context=ctx,
         )
 
     if sess.state == "CLOSE":
-        if intent == "handoff":
-            return style_msg(
-                "Claro, te conecto con uno de nuestros asesores 😊 ¿Puedes confirmarme tu teléfono o email para que te contacten?"
-            )
-        if intent == "buy":
-            # Intentar detectar qué producto quiere agregar
-            txt_lower = user_text.lower()
-            family = ctx.get("family", "")
-            if family == "humana":
-                if any(k in txt_lower for k in ["bolso", "transportador"]):
-                    ctx, item = add_to_cart(ctx, "AERO-H-BOL", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-                elif "mascarilla" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-H-MASK", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-                elif any(k in txt_lower for k in ["adaptador", "circular"]):
-                    ctx, item = add_to_cart(ctx, "AERO-H-ADC", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-                elif "recambio" in txt_lower:
-                    ctx, item = add_to_cart(ctx, "AERO-H-REC", 1)
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-            elif family == "mascota":
-                item_base = CATALOGO["mascota"]["aeropet_variable"]
-                precio_final = None
-                talla_detectada = None
-
-                if any(
-                    k in txt_lower
-                    for k in ["talla s", " s", "peque", "pequeño", "pequeña"]
-                ):
-                    talla_detectada = "S"
-                    precio_final = item_base["precio_min"]
-                elif any(
-                    k in txt_lower
-                    for k in ["talla m", " m", "med", "mediano", "mediana"]
-                ):
-                    talla_detectada = "M"
-                    precio_final = (
-                        item_base["precio_min"] + item_base["precio_max"]
-                    ) // 2
-                elif any(k in txt_lower for k in ["talla l", " l", "gran", "grande"]):
-                    talla_detectada = "L"
-                    precio_final = item_base["precio_max"]
-
-                if talla_detectada and precio_final:
-                    item_temp = {
-                        "sku": f"{item_base['sku']}-{talla_detectada}",
-                        "nombre": f"{item_base['nombre']} - Talla {talla_detectada}",
-                        "precio_clp": precio_final,
-                    }
-                    cart = ctx.get("cart", [])
-                    cart.append(
-                        {
-                            "sku": item_temp["sku"],
-                            "nombre": item_temp["nombre"],
-                            "precio_clp": item_temp["precio_clp"],
-                            "qty": 1,
-                        }
-                    )
-                    ctx["cart"] = cart
-                    update_context(sess, ctx)
-                    save_session(sess)
-                    return style_msg(
-                        f"Agregado: {item_temp['nombre']}\n\n{summarize_order(get_context(sess))}"
-                    )
-            return style_msg(
-                "Dime qué modelo quieres agregar o si necesitas algo más 😊"
-            )
-        if intent == "finalize" or "finalizar" in user_text.lower():
-            save_session(sess, state="DONE")
-            finalize_msg = get_variant("finalize")
-            if not finalize_msg:
-                finalize_msg = style_msg(
-                    "¡Listo! 🎉 Tu pedido está completo. Ya tienes el resumen y el link de pago arriba. ¿Quieres que te explique cómo usar la aerocámara? 😊"
-                )
-            return finalize_msg
-        if intent == "howto" or intent == "faq_uso":
-            fam = get_context(sess).get("family", "humana")
-            uso_msg = FAQ.get("uso_web", "")
-            return style_msg(uso_msg)
-        if intent == "shipping":
-            zone = ctx.get("shipping_zone")
-            city = ctx.get("city", "")
-            if zone and city:
-                return style_msg(shipping_info_by_city(city, zone))
-            return style_msg(shipping_text())
-        if intent == "warranty":
-            return style_msg(warranty_text())
-        # FAQ en CLOSE también
-        if intent == "faq_materials":
-            return style_msg(faq_materials())
-        if intent == "faq_cleaning":
-            return style_msg(faq_cleaning())
-        if intent == "faq_compatibility":
-            return style_msg(faq_compatibility())
-        if intent == "faq_stock":
-            return style_msg(faq_stock())
-        if intent == "faq_documents":
-            return style_msg(faq_documents())
-        if intent == "faq_contacto":
-            return style_msg(FAQ["contacto"])
-        if intent == "faq_sucursal":
-            return style_msg(FAQ["sucursales"])
-        if intent == "faq_uso":
-            return style_msg(FAQ["uso_web"])
-        if intent == "faq_mascarilla_sin":
-            return style_msg(FAQ["mascarilla_sin"])
-        if intent == "faq_edad":
-            return style_msg(FAQ["edad_uso"])
-        if intent == "faq_lavado_detalle":
-            return style_msg(FAQ["lavado"])
-        if intent == "faq_talla_mascota":
-            return style_msg(FAQ["talla_mascota"])
-        if intent == "faq_vannair":
-            return style_msg(FAQ["vannair"])
-        return style_msg("¿Tienes alguna duda? Estoy aquí para ayudarte 😊")
-
-    # Intentos sin estado específico
-    if intent == "channel_info":
-        return style_msg(
-            "Estoy disponible en nuestro sitio web, WhatsApp, Instagram y Telegram 😊 ¿Por cuál prefieres continuar?"
-        )
-    if intent == "ask_price":
-        return style_msg(
-            "¡Claro! 😊 ¿Es para una persona o para una mascota? Así te doy el precio exacto y te recomiendo la mejor opción."
-        )
-    if intent == "howto":
-        return style_msg(
-            "¡Perfecto! 😊 ¿Es para una persona o para una mascota? Te explico el uso paso a paso según tu caso."
-        )
-    if intent == "faq_materials":
-        return style_msg(faq_materials())
-    if intent == "faq_cleaning":
-        return style_msg(faq_cleaning())
-    if intent == "faq_compatibility":
-        return style_msg(faq_compatibility())
-    if intent == "faq_stock":
-        return style_msg(faq_stock())
-    if intent == "faq_documents":
-        return style_msg(faq_documents())
-    if intent == "faq_contacto":
-        return style_msg(FAQ["contacto"])
-    if intent == "faq_sucursal":
-        return style_msg(FAQ["sucursales"])
-    if intent == "faq_uso":
-        return style_msg(FAQ["uso_web"] + " (Fuente: página Aerocámara)")
-    if intent == "faq_mascarilla_sin":
-        return style_msg(FAQ["mascarilla_sin"])
-    if intent == "faq_edad":
-        return style_msg(FAQ["edad_uso"])
-    if intent == "faq_lavado_detalle":
-        return style_msg(FAQ["lavado"])
-    if intent == "faq_talla_mascota":
-        return style_msg(FAQ["talla_mascota"])
-    if intent == "faq_vannair":
-        return style_msg(FAQ["vannair"])
-    if intent == "shipping":
-        return style_msg(shipping_text())
-    if intent == "warranty":
-        return style_msg(warranty_text())
-    if intent == "howto":
-        return style_msg(FAQ["uso_web"])
-
-    # Atajo de comuna directa
-    detected_city, zone = detect_city(user_text)
-    if detected_city:
-        shipping_info = shipping_info_by_city(detected_city, zone)
-        return style_msg(
-            f"¡Perfecto! Detecté que estás en {detected_city} 😊\n\n{shipping_info}\n\n¿Te gustaría continuar con tu pedido?"
+        # Usar IA para cualquier pregunta post-venta
+        return generate_ai_response(
+            user_message=user_text, state=sess.state, context=ctx
         )
 
-    return style_msg(
-        "Ups, no entendí bien 😅 ¿Puedes repetirlo? ¿Es para una persona o para una mascota?"
-    )
+    # Para cualquier otro caso no manejado, usar IA
+    return generate_ai_response(user_message=user_text, state=sess.state, context=ctx)
 
 
 # ============= Canal: Sitio Web (REST simple) =============
